@@ -147,6 +147,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex-1 flex items-center justify-center p-6">
       <div className="w-full max-w-md bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-xl p-5 flex flex-col gap-3">
+        <img src="/logo.svg" alt="Bolt2.dyi" className="h-10 w-auto self-start" />
         <h2 className="text-lg font-semibold text-bolt-elements-textPrimary">{title}</h2>
         <p className="text-sm text-bolt-elements-textSecondary">
           {isSignupMode
