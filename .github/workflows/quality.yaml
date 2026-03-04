@@ -35,6 +35,8 @@ jobs:
         run: |
           pnpm run build
           echo "Bundle analysis completed (bundlesize tool requires configuration)"
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         continue-on-error: true
 
       - name: Dead code elimination check
@@ -88,6 +90,7 @@ jobs:
           sleep 15
         env:
           CI: true
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run accessibility tests with axe
         run: |
@@ -112,6 +115,8 @@ jobs:
           pnpm run build
           pnpm run start &
           sleep 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Run Lighthouse audit
         run: |

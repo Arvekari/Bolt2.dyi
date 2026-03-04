@@ -5,6 +5,14 @@ inputs:
     required: false
     type: string
     default: '20.18.0'
+  run-build:
+    required: false
+    type: string
+    default: 'false'
+  node-options:
+    required: false
+    type: string
+    default: '--max-old-space-size=4096'
 
 runs:
   using: composite
@@ -20,8 +28,13 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
 
-    - name: Install dependencies and build project
+    - name: Install dependencies
       shell: bash
-      run: |
-        pnpm install
-        pnpm run build
+      run: pnpm install
+
+    - name: Build project
+      if: ${{ inputs.run-build == 'true' }}
+      shell: bash
+      env:
+        NODE_OPTIONS: ${{ inputs.node-options }}
+      run: pnpm run build
