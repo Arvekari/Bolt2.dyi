@@ -1,0 +1,34 @@
+services:
+  app:
+    image: bolt2-dyi:production
+    build:
+      context: ../../../../
+      dockerfile: docs/setup/docker/runtime/Dockerfile
+      target: bolt2-dyi-production
+    ports:
+      - '5173:5173'
+    env_file:
+      - '../../../../.env'
+      - '../../../../.env.local'
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - RUNNING_IN_DOCKER=true
+      - BOLT_SQLITE_PERSISTENCE_ENABLED=true
+      - BOLT_SQLITE_PERSISTENCE_PATH=/data/bolt-memory.sqlite
+      - BOLT_LOG_DIR=/logs
+      - BOLT_SERVER_DB_PROVIDER=${BOLT_SERVER_DB_PROVIDER:-sqlite}
+      - POSTGREST_URL=${POSTGREST_URL:-}
+      - POSTGREST_SERVICE_ROLE_KEY=${POSTGREST_SERVICE_ROLE_KEY:-}
+      - OPENCLAW_BASE_URL=${OPENCLAW_BASE_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - bolt_data:/data
+      - bolt_logs:/logs
+    command: pnpm run dockerstart
+    restart: unless-stopped
+
+volumes:
+  bolt_data:
+  bolt_logs:

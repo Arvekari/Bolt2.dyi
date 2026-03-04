@@ -1,0 +1,128 @@
+site_name: Bolt2.dyi Docs
+site_dir: ../site
+docs_dir: .
+theme:
+  name: material
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.follow
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+    # - navigation.instant
+    # - navigation.tracking
+    # - navigation.tabs.sticky
+    # - navigation.expand
+    # - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+  # logo: assets/logo.png
+  # favicon: assets/logo.png
+repo_name: Bolt2.dyi
+repo_url: https://github.com/Bolt2-dyi/Bolt2.dyi
+edit_uri: ''
+
+nav:
+  - Home: index.md
+  - Setup:
+      - Installation: setup/installation.md
+      - Docker:
+          - Development: setup/docker/development.md
+          - Production: setup/docker/production.md
+          - Volumes: setup/docker/volumes.md
+          - External PostgreSQL/PostgREST: setup/docker/external-postgres.md
+          - External OpenClaw: setup/docker/external-openclaw.md
+      - Single Host:
+          - Linux: setup/single-host/linux.md
+          - macOS: setup/single-host/osx.md
+          - Windows: setup/single-host/windows.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Project Guide: architecture/project.md
+      - Layering: architecture/layering.md
+      - Dependency Rules: architecture/dependency-rules.md
+  - Database:
+      - Overview: database/overview.md
+      - PostgreSQL: database/postgresql.md
+      - PostgREST: database/postgrest.md
+      - SQLite: database/sqlite.md
+      - Migrations: database/migrations.md
+  - Integrations:
+      - Overview: integrations/overview.md
+      - OpenClaw: integrations/openclaw.md
+      - MCP: integrations/mcp.md
+  - Security:
+      - Overview: security/overview.md
+      - Authentication: security/authentication.md
+      - RBAC: security/rbac.md
+      - Encryption: security/encryption.md
+      - Audit Logging: security/audit-logging.md
+  - API:
+      - Overview: api/overview.md
+      - Endpoints: api/endpoints.md
+      - Authentication: api/authentication.md
+      - Integrations: api/integrations.md
+  - Development:
+      - Local Dev: development/local-dev.md
+      - Testing: development/testing.md
+      - Migration Guide: development/migration-guide.md
+  - Operations:
+      - Deployment: operations/deployment.md
+      - Environment Variables: operations/environment-variables.md
+      - Health Monitoring: operations/health-monitoring.md
+      - Troubleshooting: operations/troubleshooting.md
+      - Changes: operations/changes.md
+      - Changes Done: operations/changes-done.md
+  - FAQ: FAQ.md
+  - Contributing: CONTRIBUTING.md
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Bolt2-dyi/Bolt2.dyi
+      name: Bolt2.dyi
+    - icon: fontawesome/brands/discourse
+      link: https://thinktank.ottomator.ai/
+      name: Bolt2.dyi Discourse
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/bolt2_dyi
+      name: Bolt2.dyi on X
+    - icon: fontawesome/brands/bluesky
+      link: https://bsky.app/profile/bolt2.dyi
+      name: Bolt2.dyi on Bluesky
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.mark
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - admonition
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true

@@ -1,0 +1,91 @@
+name: bolt2-dyi
+
+services:
+  ebolt2:
+    image: ${IMAGE_NAME:-bolt2-dyi}:${IMAGE_TAG:-latest}
+    build:
+      context: ../../..
+      dockerfile: docs/docker/composed/Dockerfile
+      target: bolt2-dyi-production
+      args:
+        VITE_LOG_LEVEL: ${VITE_LOG_LEVEL:-debug}
+        DEFAULT_NUM_CTX: ${DEFAULT_NUM_CTX:-32768}
+        VITE_PUBLIC_APP_URL: ${VITE_PUBLIC_APP_URL:-}
+    env_file:
+      - path: ../../../.env
+        required: false
+      - path: ../../../.env.local
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=5173
+      - RUNNING_IN_DOCKER=true
+      - BOLT_SQLITE_PERSISTENCE_ENABLED=true
+      - BOLT_SQLITE_PERSISTENCE_PATH=/data/bolt-memory.sqlite
+      - BOLT_LOG_DIR=/logs
+      - BOLT_SERVER_DB_PROVIDER=${BOLT_SERVER_DB_PROVIDER:-sqlite}
+      - POSTGREST_URL=${POSTGREST_URL:-}
+      - POSTGREST_SERVICE_ROLE_KEY=${POSTGREST_SERVICE_ROLE_KEY:-}
+      - OPENCLAW_BASE_URL=${OPENCLAW_BASE_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - HuggingFace_API_KEY=${HuggingFace_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY:-}
+      - GOOGLE_GENERATIVE_AI_API_KEY=${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+      - TOGETHER_API_BASE_URL=${TOGETHER_API_BASE_URL:-}
+      - AWS_BEDROCK_CONFIG=${AWS_BEDROCK_CONFIG:-}
+    ports:
+      - '5173:5173'
+    volumes:
+      - bolt_data:/data
+      - bolt_logs:/logs
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command: pnpm run dockerstart
+    restart: unless-stopped
+
+  ebolt2-dev:
+    image: ${IMAGE_NAME:-bolt2-dyi}:development
+    build:
+      context: ../../..
+      dockerfile: docs/docker/composed/Dockerfile
+      target: development
+      args:
+        VITE_LOG_LEVEL: ${VITE_LOG_LEVEL:-debug}
+        DEFAULT_NUM_CTX: ${DEFAULT_NUM_CTX:-32768}
+        VITE_PUBLIC_APP_URL: ${VITE_PUBLIC_APP_URL:-}
+    env_file:
+      - path: ../../../.env
+        required: false
+      - path: ../../../.env.local
+        required: false
+    environment:
+      - NODE_ENV=development
+      - VITE_HMR_PROTOCOL=ws
+      - VITE_HMR_HOST=localhost
+      - VITE_HMR_PORT=5173
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - PORT=5173
+      - RUNNING_IN_DOCKER=true
+    ports:
+      - '5173:5173'
+    volumes:
+      - type: bind
+        source: ../../..
+        target: /app
+        consistency: cached
+      - /app/node_modules
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command: pnpm run dev --host 0.0.0.0
+    profiles:
+      - development
+
+volumes:
+  bolt_data:
+  bolt_logs:

@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  ebolt2:
+    image: ghcr.io/your-org/ebolt2:latest
+    container_name: ebolt2
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      NODE_ENV: production
+      PORT: "5173"
+      RUNNING_IN_DOCKER: "true"
+      BOLT_SQLITE_PERSISTENCE_ENABLED: "true"
+      BOLT_SQLITE_PERSISTENCE_PATH: /data/bolt-memory.sqlite
+      BOLT_LOG_DIR: /logs
+      BOLT_SERVER_DB_PROVIDER: sqlite
+      POSTGREST_URL: ""
+      POSTGREST_SERVICE_ROLE_KEY: ""
+      OPENCLAW_BASE_URL: ""
+      GROQ_API_KEY: ""
+      HuggingFace_API_KEY: ""
+      OPENAI_API_KEY: ""
+      ANTHROPIC_API_KEY: ""
+      OPEN_ROUTER_API_KEY: ""
+      GOOGLE_GENERATIVE_AI_API_KEY: ""
+      OLLAMA_API_BASE_URL: ""
+      XAI_API_KEY: ""
+      TOGETHER_API_KEY: ""
+      TOGETHER_API_BASE_URL: ""
+      AWS_BEDROCK_CONFIG: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ebolt2_data:/data
+      - ebolt2_logs:/logs
+    command: pnpm run dockerstart
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  ebolt2_data:
+  ebolt2_logs:
