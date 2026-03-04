@@ -157,6 +157,10 @@ export async function streamText(props: {
     }
   }
 
+  if (!modelDetails) {
+    throw new Error(`Model details were not resolved for provider ${provider.name}`);
+  }
+
   const dynamicMaxTokens = modelDetails ? getCompletionTokenLimit(modelDetails) : Math.min(MAX_TOKENS, 16384);
 
   // Use model-specific limits directly - no artificial cap needed

@@ -20,7 +20,8 @@ describe('/api/system/git-info', () => {
       context: { env: {} },
     } as any);
 
-    expect(response.status).toBe(401);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(401);
   });
 
   it('returns github user payload for getUser action', async () => {
@@ -33,8 +34,9 @@ describe('/api/system/git-info', () => {
       context: { env: {} },
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.user.login).toBe('arva');
   });
 
@@ -58,8 +60,9 @@ describe('/api/system/git-info', () => {
       context: { env: {} },
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.repos).toHaveLength(2);
     expect(data.stats.totalStars).toBe(6);
     expect(data.stats.totalForks).toBe(2);
@@ -71,9 +74,10 @@ describe('/api/system/git-info', () => {
       request: new Request('http://localhost/api/system/git-info'),
       context: { env: {} },
     } as any);
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.local).toBeDefined();
     expect(data.timestamp).toBeDefined();
   });

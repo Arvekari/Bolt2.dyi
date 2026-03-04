@@ -27,16 +27,17 @@ describe('/api/system/diagnostics', () => {
       context: { env: { GITHUB_ACCESS_TOKEN: 'x', NETLIFY_TOKEN: 'y' } },
     } as any);
 
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.status).toBe('success');
     expect(data.environment.hasGithubToken).toBe(true);
     expect(data.environment.hasNetlifyToken).toBe(true);
     expect(data.cookies).toMatchObject({ hasGithubTokenCookie: true, hasGithubUsernameCookie: true, hasNetlifyCookie: true });
     expect(data.externalApis.github.isReachable).toBe(true);
     expect(data.externalApis.netlify.isReachable).toBe(true);
-    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(typedResponse.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 
   it('marks external APIs unreachable when fetch throws', async () => {
@@ -47,9 +48,10 @@ describe('/api/system/diagnostics', () => {
       context: { env: {} },
     } as any);
 
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.externalApis.github.isReachable).toBe(false);
     expect(data.externalApis.netlify.isReachable).toBe(false);
     expect(data.externalApis.github.error).toContain('github down');

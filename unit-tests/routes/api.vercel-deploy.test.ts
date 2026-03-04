@@ -15,7 +15,8 @@ describe('/api/vercel-deploy', () => {
 
   it('loader returns 400 when query params are missing', async () => {
     const response = await loader({ request: new Request('http://localhost/api/vercel-deploy') } as any);
-    expect(response.status).toBe(400);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(400);
   });
 
   it('loader returns project and latest deploy on success', async () => {
@@ -27,8 +28,9 @@ describe('/api/vercel-deploy', () => {
       request: new Request('http://localhost/api/vercel-deploy?projectId=p1&token=t1'),
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.project.id).toBe('p1');
     expect(data.deploy.id).toBe('d1');
   });
@@ -42,7 +44,8 @@ describe('/api/vercel-deploy', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(401);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(401);
   });
 
   it('action creates project+deployment and returns success', async () => {
@@ -64,8 +67,9 @@ describe('/api/vercel-deploy', () => {
       }),
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.deploy.id).toBe('dep1');
     expect(data.project.id).toBe('p1');

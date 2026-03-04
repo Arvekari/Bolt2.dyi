@@ -244,7 +244,7 @@ export const ChatImpl = memo(
         });
 
         const response = await fetch(`/api/collab/conversations?${params.toString()}`);
-        const data = await response.json();
+        const data = (await response.json()) as any;
 
         if (!response.ok || !data?.ok) {
           throw new Error(data?.error || 'Failed to load shared conversation');

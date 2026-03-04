@@ -15,7 +15,8 @@ describe('/api/supabase', () => {
 
   it('returns 405 for non-POST method', async () => {
     const response = await action({ request: new Request('http://localhost/api/supabase', { method: 'GET' }) } as any);
-    expect(response.status).toBe(405);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(405);
   });
 
   it('returns 401 when upstream projects request fails', async () => {
@@ -29,7 +30,8 @@ describe('/api/supabase', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(401);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(401);
   });
 
   it('returns deduplicated and sorted projects on success', async () => {
@@ -52,9 +54,10 @@ describe('/api/supabase', () => {
       }),
     } as any);
 
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.stats.totalProjects).toBe(2);
     expect(data.stats.projects[0].id).toBe('p2');
     expect(data.stats.projects[1].id).toBe('p1');

@@ -15,6 +15,6 @@ export async function executeCoreChatStream(input: {
         content: input.message,
       },
     ],
-    env: input.env,
+    env: input.env as any,
   });
 }

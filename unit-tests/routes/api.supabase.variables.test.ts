@@ -22,7 +22,8 @@ describe('/api/supabase/variables', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(400);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(400);
   });
 
   it('returns upstream status when api keys request fails', async () => {
@@ -36,7 +37,8 @@ describe('/api/supabase/variables', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(403);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(403);
   });
 
   it('returns API keys on success', async () => {
@@ -50,8 +52,9 @@ describe('/api/supabase/variables', () => {
       }),
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.apiKeys[0].name).toBe('anon');
   });
 });

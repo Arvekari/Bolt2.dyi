@@ -111,7 +111,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               })),
               error: currentRun.error,
             },
-          });
+          } as any);
         };
 
         emitAgentRun();

@@ -25,7 +25,8 @@ describe('/api/vercel-user', () => {
 
   it('loader returns 401 when token missing', async () => {
     const response = await loader({ request: new Request('http://localhost/api/vercel-user'), context: {} } as any);
-    expect(response.status).toBe(401);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(401);
   });
 
   it('loader accepts bearer auth header and returns user', async () => {
@@ -40,8 +41,9 @@ describe('/api/vercel-user', () => {
       context: {},
     } as any);
 
-    const data = await response.json();
-    expect(response.status).toBe(200);
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+    expect(typedResponse.status).toBe(200);
     expect(data.username).toBe('vercel');
   });
 
@@ -58,9 +60,10 @@ describe('/api/vercel-user', () => {
     form.set('action', 'get_projects');
 
     const response = await action({ request: new Request('http://localhost/api/vercel-user', { method: 'POST', body: form }), context: {} } as any);
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.totalProjects).toBe(1);
   });
 
@@ -71,6 +74,7 @@ describe('/api/vercel-user', () => {
     form.set('action', 'invalid');
 
     const response = await action({ request: new Request('http://localhost/api/vercel-user', { method: 'POST', body: form }), context: {} } as any);
-    expect(response.status).toBe(400);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(400);
   });
 });

@@ -34,5 +34,14 @@
     "**/.server/**/*.tsx",
     "**/.client/**/*.ts",
     "**/.client/**/*.tsx"
+  ],
+  "exclude": [
+    "unit-tests/**",
+    "coverage/**",
+    "site/**",
+    "dist/**",
+    "build/**",
+    "functions/**",
+    "node_modules/**"
   ]
 }

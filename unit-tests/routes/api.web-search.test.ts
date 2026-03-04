@@ -21,7 +21,8 @@ describe('/api/web-search', () => {
 
   it('returns 405 for non-POST methods', async () => {
     const response = await action({ request: new Request('http://localhost/api/web-search', { method: 'GET' }) } as any);
-    expect(response.status).toBe(405);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(405);
   });
 
   it('returns 400 when url is missing', async () => {
@@ -33,7 +34,8 @@ describe('/api/web-search', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(400);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(400);
   });
 
   it('returns 400 when url is not allowed', async () => {
@@ -47,7 +49,8 @@ describe('/api/web-search', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(400);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(400);
   });
 
   it('returns 502 when upstream fetch fails with non-ok response', async () => {
@@ -61,7 +64,8 @@ describe('/api/web-search', () => {
       }),
     } as any);
 
-    expect(response.status).toBe(502);
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(502);
   });
 
   it('returns parsed page data for valid html content', async () => {
@@ -83,9 +87,10 @@ describe('/api/web-search', () => {
       }),
     } as any);
 
-    const data = await response.json();
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
 
-    expect(response.status).toBe(200);
+    expect(typedResponse.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.data.title).toBe('Example Title');
     expect(data.data.description).toBe('Example description');
