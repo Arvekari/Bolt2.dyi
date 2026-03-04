@@ -45,7 +45,10 @@ services:
       - bolt_logs:/logs
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    command: pnpm run dockerstart
+    command:
+      - sh
+      - -lc
+      - NODE_OPTIONS=--conditions=browser PORT=5173 HOST=0.0.0.0 pnpm exec remix-serve build/server/index.js
     restart: unless-stopped
 
   ebolt2-dev:

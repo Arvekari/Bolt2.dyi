@@ -8,8 +8,12 @@ services:
     ports:
       - '5173:5173'
     env_file:
-      - '../../../../.env'
-      - '../../../../.env.local'
+      - path: '../../../../env.production'
+        required: false
+      - path: '../../../../.env'
+        required: false
+      - path: '../../../../.env.local'
+        required: false
     environment:
       - NODE_ENV=production
       - COMPOSE_PROFILES=production
@@ -33,7 +37,10 @@ services:
       - 'host.docker.internal:host-gateway'
     volumes:
       - bolt_data:/data
-    command: pnpm run dockerstart
+    command:
+      - sh
+      - -lc
+      - NODE_OPTIONS=--conditions=browser PORT=5173 HOST=0.0.0.0 pnpm exec remix-serve build/server/index.js
     profiles:
       - production
 
@@ -44,8 +51,12 @@ services:
       dockerfile: docs/setup/docker/runtime/Dockerfile
       target: development
     env_file:
-      - '../../../../.env'
-      - '../../../../.env.local'
+      - path: '../../../../env.production'
+        required: false
+      - path: '../../../../.env'
+        required: false
+      - path: '../../../../.env.local'
+        required: false
     environment:
       - NODE_ENV=development
       - VITE_HMR_PROTOCOL=ws
@@ -97,7 +108,10 @@ services:
       - 'host.docker.internal:host-gateway'
     volumes:
       - bolt_data:/data
-    command: pnpm run dockerstart
+    command:
+      - sh
+      - -lc
+      - NODE_OPTIONS=--conditions=browser PORT=5173 HOST=0.0.0.0 pnpm exec remix-serve build/server/index.js
     profiles:
       - prebuilt
 
