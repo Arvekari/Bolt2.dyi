@@ -76,17 +76,28 @@ async function ensureContext(env?: Record<string, any>): Promise<SqliteContext |
   if (!sqliteContextPromise) {
     sqliteContextPromise = (async () => {
       try {
-        const [sqlJsModule, fsModule, pathModule] = await Promise.all([
+        const [sqlJsModule, fsModule, pathModule, moduleModule] = await Promise.all([
           import('sql.js'),
           import('node:fs/promises'),
           import('node:path'),
+          import('node:module'),
         ]);
 
         const initSqlJs = (sqlJsModule as any).default;
         const fs = (fsModule as any).default ?? (fsModule as any);
         const path = (pathModule as any).default ?? (pathModule as any);
+        const createRequire = (moduleModule as any).createRequire as (filename: string) => NodeRequire;
+        const requireFromHere = createRequire(import.meta.url);
 
-        const SQL = await initSqlJs({});
+        let SQL: any;
+
+        try {
+          const wasmPath = requireFromHere.resolve('sql.js/dist/sql-wasm.wasm');
+          const wasmBinary = await fs.readFile(wasmPath);
+          SQL = await initSqlJs({ wasmBinary: new Uint8Array(wasmBinary) });
+        } catch {
+          SQL = await initSqlJs({});
+        }
         const sqlitePath = getSqlitePath(env);
 
         await fs.mkdir(path.dirname(sqlitePath), { recursive: true });
