@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   ebolt2:
-    image: ghcr.io/your-org/ebolt2:latest
+    image: ghcr.io/arvekari/ebolt2:latest
     container_name: ebolt2
     restart: unless-stopped
     ports:

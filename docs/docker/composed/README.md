@@ -30,8 +30,8 @@ docker compose -f docs/docker/composed/docker-compose.yaml --profile development
 Replace values as needed:
 
 ```bash
-docker tag bolt2-dyi:latest ghcr.io/<your-org>/ebolt2:latest
-docker push ghcr.io/<your-org>/ebolt2:latest
+docker tag bolt2-dyi:latest ghcr.io/arvekari/ebolt2:latest
+docker push ghcr.io/arvekari/ebolt2:latest
 ```
 
 ## Deploy using prebuilt image
@@ -39,7 +39,7 @@ docker push ghcr.io/<your-org>/ebolt2:latest
 Set runtime image values and start:
 
 ```bash
-IMAGE_NAME=ghcr.io/<your-org>/ebolt2 IMAGE_TAG=latest docker compose -f docs/docker/composed/docker-compose.yaml up -d --no-build ebolt2
+IMAGE_NAME=ghcr.io/arvekari/ebolt2 IMAGE_TAG=latest docker compose -f docs/docker/composed/docker-compose.yaml up -d --no-build ebolt2
 ```
 
 ## Portainer stack example (deploy from GitHub image)
@@ -55,7 +55,7 @@ docker push ghcr.io/<your-org>/ebolt2:latest
 
 2. In Portainer, go to **Stacks** -> **Add stack**.
 3. Paste the contents of `portainer-stack.example.yml`.
-4. Replace `ghcr.io/your-org/ebolt2:latest` with your real image name.
+4. Use `ghcr.io/arvekari/ebolt2:latest` (or your custom tag).
 5. Fill API key environment values before deploy.
 6. Deploy the stack.
 
