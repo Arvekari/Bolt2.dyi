@@ -79,10 +79,22 @@ async function requestPostgrest<T>(
     headers.set('apikey', config.serviceRoleKey);
   }
 
-  const response = await fetch(`${config.url}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${config.url}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    logger.warn('PostgREST request failed', {
+      path,
+      method: init.method || 'GET',
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return { ok: false, data: null, status: 503, headers: new Headers() };
+  }
 
   let data: T | null = null;
 

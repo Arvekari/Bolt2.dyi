@@ -54,6 +54,21 @@ describe('/api/auth/session + /api/auth/logout', () => {
     expect(data.user.username).toBe('admin');
   });
 
+  it('returns unauthenticated fallback payload when user-count lookup fails', async () => {
+    vi.mocked(getCurrentUserFromRequest).mockResolvedValue(null);
+    vi.mocked(getUserCount).mockRejectedValue(new Error('postgrest unreachable'));
+
+    const response = await sessionLoader({
+      request: new Request('http://localhost/api/auth/session'),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.authenticated).toBe(false);
+    expect(data.requireSignup).toBe(true);
+  });
+
   it('clears auth cookies on logout', async () => {
     vi.mocked(clearAuthCookies).mockResolvedValue(['bolt_session=; Max-Age=0']);
 

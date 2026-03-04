@@ -71,4 +71,22 @@ describe('/api/auth/login', () => {
     expect(data.ok).toBe(true);
     expect(hashPassword).toHaveBeenCalledWith('password123', 'salt');
   });
+
+  it('returns JSON 500 when persistence lookup throws', async () => {
+    vi.mocked(findUserByUsername).mockRejectedValue(new Error('backend unavailable'));
+
+    const response = await action({
+      request: new Request('http://localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'alice', password: 'password123' }),
+      }),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data.ok).toBe(false);
+    expect(typeof data.error).toBe('string');
+  });
 });

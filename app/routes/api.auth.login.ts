@@ -21,30 +21,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ ok: false, error: 'Username and password are required.', requestId }, { status: 400 });
   }
 
-  const user = await findUserByUsername(username, env);
+  try {
+    const user = await findUserByUsername(username, env);
 
-  if (!user) {
-    return json({ ok: false, error: 'Invalid credentials.', requestId }, { status: 401 });
+    if (!user) {
+      return json({ ok: false, error: 'Invalid credentials.', requestId }, { status: 401 });
+    }
+
+    const expectedHash = await hashPassword(password, user.passwordSalt);
+
+    if (expectedHash !== user.passwordHash) {
+      return json({ ok: false, error: 'Invalid credentials.', requestId }, { status: 401 });
+    }
+
+    const cookies = await createAuthCookies(user.id, env);
+    const headers = new Headers();
+    cookies.forEach((cookie) => headers.append('Set-Cookie', cookie));
+
+    const jwtSecret = (env?.BOLT_JWT_SECRET || 'bolt-default-jwt-secret') as string;
+    const jwt = await issueJwtToken(
+      { sub: user.id, role: user.isAdmin ? 'admin' : 'user' },
+      { jwtSecret, ttlSeconds: 60 * 60 * 24 * 14 },
+    );
+    headers.append('Set-Cookie', `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`);
+
+    headers.set('x-request-id', requestId);
+
+    return json({ ok: true, requestId, user: { id: user.id, username: user.username, isAdmin: user.isAdmin } }, { headers });
+  } catch {
+    return json(
+      { ok: false, error: 'Authentication service unavailable. Please check database setup.', requestId },
+      { status: 500 },
+    );
   }
-
-  const expectedHash = await hashPassword(password, user.passwordSalt);
-
-  if (expectedHash !== user.passwordHash) {
-    return json({ ok: false, error: 'Invalid credentials.', requestId }, { status: 401 });
-  }
-
-  const cookies = await createAuthCookies(user.id, env);
-  const headers = new Headers();
-  cookies.forEach((cookie) => headers.append('Set-Cookie', cookie));
-
-  const jwtSecret = (env?.BOLT_JWT_SECRET || 'bolt-default-jwt-secret') as string;
-  const jwt = await issueJwtToken(
-    { sub: user.id, role: user.isAdmin ? 'admin' : 'user' },
-    { jwtSecret, ttlSeconds: 60 * 60 * 24 * 14 },
-  );
-  headers.append('Set-Cookie', `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`);
-
-  headers.set('x-request-id', requestId);
-
-  return json({ ok: true, requestId, user: { id: user.id, username: user.username, isAdmin: user.isAdmin } }, { headers });
 }

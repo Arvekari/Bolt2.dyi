@@ -25,45 +25,52 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ ok: false, error: 'Password must be at least 8 characters.', requestId }, { status: 400 });
   }
 
-  const existing = await findUserByUsername(username, env);
+  try {
+    const existing = await findUserByUsername(username, env);
 
-  if (existing) {
-    return json({ ok: false, error: 'Username already exists.', requestId }, { status: 409 });
+    if (existing) {
+      return json({ ok: false, error: 'Username already exists.', requestId }, { status: 409 });
+    }
+
+    const count = await getUserCount(env);
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(password, salt);
+
+    const created = await createUser(
+      {
+        username,
+        passwordHash,
+        passwordSalt: salt,
+        isAdmin: count === 0,
+      },
+      env,
+    );
+
+    if (!created) {
+      return json({ ok: false, error: 'Failed to create user.', requestId }, { status: 500 });
+    }
+
+    const cookies = await createAuthCookies(created.id, env);
+    const headers = new Headers();
+    cookies.forEach((cookie) => headers.append('Set-Cookie', cookie));
+
+    const jwtSecret = (env?.BOLT_JWT_SECRET || 'bolt-default-jwt-secret') as string;
+    const jwt = await issueJwtToken(
+      { sub: created.id, role: created.isAdmin ? 'admin' : 'user' },
+      { jwtSecret, ttlSeconds: 60 * 60 * 24 * 14 },
+    );
+    headers.append('Set-Cookie', `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`);
+
+    headers.set('x-request-id', requestId);
+
+    return json(
+      { ok: true, requestId, user: { id: created.id, username: created.username, isAdmin: created.isAdmin } },
+      { headers },
+    );
+  } catch {
+    return json(
+      { ok: false, error: 'Authentication service unavailable. Please check database setup.', requestId },
+      { status: 500 },
+    );
   }
-
-  const count = await getUserCount(env);
-  const salt = generateSalt();
-  const passwordHash = await hashPassword(password, salt);
-
-  const created = await createUser(
-    {
-      username,
-      passwordHash,
-      passwordSalt: salt,
-      isAdmin: count === 0,
-    },
-    env,
-  );
-
-  if (!created) {
-    return json({ ok: false, error: 'Failed to create user.', requestId }, { status: 500 });
-  }
-
-  const cookies = await createAuthCookies(created.id, env);
-  const headers = new Headers();
-  cookies.forEach((cookie) => headers.append('Set-Cookie', cookie));
-
-  const jwtSecret = (env?.BOLT_JWT_SECRET || 'bolt-default-jwt-secret') as string;
-  const jwt = await issueJwtToken(
-    { sub: created.id, role: created.isAdmin ? 'admin' : 'user' },
-    { jwtSecret, ttlSeconds: 60 * 60 * 24 * 14 },
-  );
-  headers.append('Set-Cookie', `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`);
-
-  headers.set('x-request-id', requestId);
-
-  return json(
-    { ok: true, requestId, user: { id: created.id, username: created.username, isAdmin: created.isAdmin } },
-    { headers },
-  );
 }

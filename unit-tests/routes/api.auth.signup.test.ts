@@ -71,4 +71,22 @@ describe('/api/auth/signup', () => {
     expect(data.ok).toBe(true);
     expect(data.user.isAdmin).toBe(true);
   });
+
+  it('returns JSON 500 when persistence lookup throws', async () => {
+    vi.mocked(findUserByUsername).mockRejectedValue(new Error('postgrest unreachable'));
+
+    const response = await action({
+      request: new Request('http://localhost/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'alice', password: 'password123' }),
+      }),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data.ok).toBe(false);
+    expect(typeof data.error).toBe('string');
+  });
 });
