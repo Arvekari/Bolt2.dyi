@@ -246,6 +246,7 @@ Key rules:
 - No direct integration calls from UI
 - No hardcoded credentials
 - No circular dependencies
+- Test-first change rule is mandatory (verify/create tests before production code changes)
 - All changes must pass test suite
 - Refactors must not introduce regressions
 
