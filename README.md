@@ -174,6 +174,17 @@ Documentation:
 Documentation:
 `/docs/integrations/mcp.md`
 
+### n8n
+
+- External n8n instance only (not bundled)
+- API key + base URL configuration required
+- Supports workflow deployment through the n8n integration route
+- Can be configured from system settings when environment variables are not set
+- Graceful failure if n8n is not configured or unavailable
+
+Current integration endpoint:
+`/api/n8n/workflows`
+
 ---
 
 ## Security Model
