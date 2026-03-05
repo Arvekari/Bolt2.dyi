@@ -27,6 +27,15 @@ export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0]
 
 const logger = createScopedLogger('stream-text');
 
+function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): boolean {
+  if (providerName !== 'OpenAI') {
+    return false;
+  }
+
+  const normalized = modelName.toLowerCase();
+  return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
+}
+
 function getCompletionTokenLimit(modelDetails: any): number {
   // 1. If model specifies completion tokens, use that
   if (modelDetails.maxCompletionTokens && modelDetails.maxCompletionTokens > 0) {
@@ -257,10 +266,11 @@ ${customPromptBody}
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
 
-  // Log reasoning model detection and token parameters
-  const isReasoning = isReasoningModel(modelDetails.name);
+  // Log model execution mode and token parameters
+  const completionOnlyModel = isCompletionOnlyOpenAIModel(provider.name, modelDetails.name);
+  const isReasoning = !completionOnlyModel && isReasoningModel(modelDetails.name);
   logger.info(
-    `Model "${modelDetails.name}" is reasoning model: ${isReasoning}, using ${isReasoning ? 'maxCompletionTokens' : 'maxTokens'}: ${safeMaxTokens}`,
+    `Model "${modelDetails.name}" completionOnly=${completionOnlyModel} reasoning=${isReasoning}, using ${isReasoning ? 'maxCompletionTokens' : 'maxTokens'}: ${safeMaxTokens}`,
   );
 
   // Validate token limits before API call
@@ -273,11 +283,14 @@ ${customPromptBody}
   // Use maxCompletionTokens for reasoning models (o1, GPT-5), maxTokens for traditional models
   const tokenParams = isReasoning ? { maxCompletionTokens: safeMaxTokens } : { maxTokens: safeMaxTokens };
 
+  const baseOptions = { ...(options || {}) } as Record<string, any>;
+  delete baseOptions.supabaseConnection;
+
   // Filter out unsupported parameters for reasoning models
   const filteredOptions =
-    isReasoning && options
+    isReasoning
       ? Object.fromEntries(
-          Object.entries(options).filter(
+          Object.entries(baseOptions).filter(
             ([key]) =>
               ![
                 'temperature',
@@ -290,13 +303,21 @@ ${customPromptBody}
               ].includes(key),
           ),
         )
-      : options || {};
+      : baseOptions;
+
+  if (completionOnlyModel) {
+    delete (filteredOptions as any).tools;
+    delete (filteredOptions as any).toolChoice;
+    delete (filteredOptions as any).maxSteps;
+    delete (filteredOptions as any).onStepFinish;
+  }
 
   // DEBUG: Log filtered options
   logger.info(
     `DEBUG STREAM: Options filtering for model "${modelDetails.name}":`,
     JSON.stringify(
       {
+        completionOnlyModel,
         isReasoning,
         originalOptions: options || {},
         filteredOptions,

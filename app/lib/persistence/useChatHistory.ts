@@ -332,11 +332,13 @@ ${value.content}
         return;
       }
 
+      const effectiveUrlId = _urlId || finalChatId;
+
       await setMessages(
         db,
         finalChatId, // Use the potentially updated chatId
         [...archivedMessages, ...messages],
-        urlId,
+        effectiveUrlId,
         description.get(),
         undefined,
         chatMetadata.get(),

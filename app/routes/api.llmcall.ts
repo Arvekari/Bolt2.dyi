@@ -25,6 +25,15 @@ async function getModelList(options: {
 
 const logger = createScopedLogger('api.llmcall');
 
+function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): boolean {
+  if (providerName !== 'OpenAI') {
+    return false;
+  }
+
+  const normalized = modelName.toLowerCase();
+  return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
+}
+
 function getCompletionTokenLimit(modelDetails: ModelInfo): number {
   // 1. If model specifies completion tokens, use that
   if (modelDetails.maxCompletionTokens && modelDetails.maxCompletionTokens > 0) {
@@ -204,15 +213,18 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         },
       });
 
-      // DEBUG: Log reasoning model detection
-      const isReasoning = isReasoningModel(modelDetails.name);
-      logger.info(`DEBUG: Model "${modelDetails.name}" detected as reasoning model: ${isReasoning}`);
+      // DEBUG: Log model execution mode
+      const completionOnlyModel = isCompletionOnlyOpenAIModel(provider.name, modelDetails.name);
+      const isReasoning = !completionOnlyModel && isReasoningModel(modelDetails.name);
+      logger.info(
+        `DEBUG: Model "${modelDetails.name}" completionOnly=${completionOnlyModel} reasoning=${isReasoning}`,
+      );
 
       // Use maxCompletionTokens for reasoning models (o1, GPT-5), maxTokens for traditional models
       const tokenParams = isReasoning ? { maxCompletionTokens: dynamicMaxTokens } : { maxTokens: dynamicMaxTokens };
 
       // Filter out unsupported parameters for reasoning models
-      const baseParams = {
+      const baseParams: Record<string, any> = {
         system: optimizedPrompt.system,
         messages: [
           {
@@ -229,6 +241,10 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         ...tokenParams,
         toolChoice: 'none' as const,
       };
+
+      if (completionOnlyModel) {
+        delete baseParams.toolChoice;
+      }
 
       // For reasoning models, set temperature to 1 (required by OpenAI API)
       const finalParams = isReasoning
@@ -255,7 +271,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         ),
       );
 
-      const result = await generateText(finalParams);
+      const result = await generateText(finalParams as any);
       logger.info(`Generated response`);
 
       return new Response(JSON.stringify(result), {

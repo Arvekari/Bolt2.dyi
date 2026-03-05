@@ -40,7 +40,7 @@ export default async function handleRequest(
       function read() {
         reader
           .read()
-          .then(({ done, value }) => {
+          .then(({ done, value }: ReadableStreamReadResult<Uint8Array>) => {
             if (done) {
               controller.enqueue(new Uint8Array(new TextEncoder().encode('</div></body></html>')));
               controller.close();
@@ -51,7 +51,7 @@ export default async function handleRequest(
             controller.enqueue(value);
             read();
           })
-          .catch((error) => {
+          .catch((error: unknown) => {
             controller.error(error);
             readable.cancel();
           });

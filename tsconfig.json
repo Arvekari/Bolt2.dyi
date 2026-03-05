@@ -28,6 +28,7 @@
     "noEmit": true
   },
   "include": [
+    "**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "**/.server/**/*.ts",
