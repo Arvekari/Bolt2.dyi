@@ -36,6 +36,10 @@ function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): b
   return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
 }
 
+export function isToolCallingDisabledForProvider(providerName: string): boolean {
+  return providerName === 'OpenAI';
+}
+
 function getCompletionTokenLimit(modelDetails: any): number {
   // 1. If model specifies completion tokens, use that
   if (modelDetails.maxCompletionTokens && modelDetails.maxCompletionTokens > 0) {
@@ -276,6 +280,7 @@ ${customPromptBody}
 
   // Log model execution mode and token parameters
   const completionOnlyModel = isCompletionOnlyOpenAIModel(provider.name, modelDetails.name);
+  const disableToolCalling = isToolCallingDisabledForProvider(provider.name);
   const isReasoning = !completionOnlyModel && isReasoningModel(modelDetails.name);
   logger.info(
     `Model "${modelDetails.name}" completionOnly=${completionOnlyModel} reasoning=${isReasoning}, using ${isReasoning ? 'maxCompletionTokens' : 'maxTokens'}: ${safeMaxTokens}`,
@@ -313,7 +318,7 @@ ${customPromptBody}
         )
       : baseOptions;
 
-  if (completionOnlyModel) {
+  if (completionOnlyModel || disableToolCalling) {
     delete (filteredOptions as any).tools;
     delete (filteredOptions as any).toolChoice;
     delete (filteredOptions as any).maxSteps;
@@ -333,6 +338,7 @@ ${customPromptBody}
     JSON.stringify(
       {
         completionOnlyModel,
+        disableToolCalling,
         isReasoning,
         originalOptions: options || {},
         filteredOptions,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasToolDefinitions } from '~/lib/.server/llm/stream-text';
+import { hasToolDefinitions, isToolCallingDisabledForProvider } from '~/lib/.server/llm/stream-text';
 
 describe('stream-text tool option guards', () => {
   it('returns false for undefined and empty tools object', () => {
@@ -22,5 +22,10 @@ describe('stream-text tool option guards', () => {
     expect(hasToolDefinitions(null)).toBe(false);
     expect(hasToolDefinitions([])).toBe(false);
     expect(hasToolDefinitions('tools')).toBe(false);
+  });
+
+  it('disables tool calling for OpenAI provider', () => {
+    expect(isToolCallingDisabledForProvider('OpenAI')).toBe(true);
+    expect(isToolCallingDisabledForProvider('Anthropic')).toBe(false);
   });
 });
