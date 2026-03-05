@@ -23,7 +23,7 @@ The stack defines one service:
   - `image`: `ghcr.io/your-org/ebolt2:latest` (replace with your real image)
   - `ports`: `5173:5173`
   - `restart`: `unless-stopped`
-  - `command`: `NODE_OPTIONS=--conditions=browser PORT=5173 HOST=0.0.0.0 pnpm exec remix-serve build/server/index.js`
+  - `command`: `PORT=5173 HOST=0.0.0.0 pnpm exec remix-serve build/server/index.js`
   - `healthcheck`: probes `http://localhost:5173/`
 
 The startup command includes a writable-volume preflight (`test -w /data` and `test -w /logs`) so SQLite and logging fail fast with a clear deployment signal if mounts are not writable.

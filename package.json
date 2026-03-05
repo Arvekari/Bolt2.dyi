@@ -25,7 +25,7 @@
     "start:windows": "wrangler pages dev ./build/client",
     "start:unix": "bindings=$(./bindings.sh) && wrangler pages dev ./build/client $bindings",
     "start": "node -e \"const { spawn } = require('child_process'); const isWindows = process.platform === 'win32'; const cmd = isWindows ? 'npm run start:windows' : 'npm run start:unix'; const child = spawn(cmd, { shell: true, stdio: 'inherit' }); child.on('exit', code => process.exit(code));\"",
-    "dockerstart": "NODE_OPTIONS=--conditions=browser PORT=${PORT:-5173} HOST=${HOST:-0.0.0.0} pnpm exec remix-serve build/server/index.js",
+    "dockerstart": "PORT=${PORT:-5173} HOST=${HOST:-0.0.0.0} pnpm exec remix-serve build/server/index.js",
     "dockerrun": "docker run -it -d --name bolt2-dyi-live -p 5173:5173 --env-file .env.local bolt2-dyi",
     "dockerbuild:prod": "docker build -t bolt2-dyi:production -t bolt2-dyi:latest --target bolt2-dyi-production .",
     "dockerbuild": "docker build -t bolt2-dyi:development -t bolt2-dyi:latest --target development .",

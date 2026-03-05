@@ -53,7 +53,7 @@ EXPOSE 5173
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
   CMD curl -fsS http://localhost:5173/ || exit 1
 
-CMD ["sh", "-lc", "NODE_OPTIONS=--conditions=browser PORT=${PORT:-5173} HOST=${HOST:-0.0.0.0} pnpm exec remix-serve build/server/index.js"]
+CMD ["sh", "-lc", "PORT=${PORT:-5173} HOST=${HOST:-0.0.0.0} pnpm exec remix-serve build/server/index.js"]
 
 
 # ---- development stage ----
