@@ -97,4 +97,33 @@ describe('/api/web-search', () => {
     expect(data.data.content).toContain('Hello');
     expect(data.data.sourceUrl).toBe('https://example.com');
   });
+
+  it('removes script, style, and navigation content from extracted text output', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        '<html><head><title>Security Case</title><style>.hidden{display:none}banner text</style></head><body><nav>Phishing nav copy</nav><main>Visible text</main><script>alert("xss")</script></body></html>',
+        {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        },
+      ),
+    );
+
+    const response = await action({
+      request: new Request('http://localhost/api/web-search', {
+        method: 'POST',
+        body: JSON.stringify({ url: 'https://example.com/security' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    } as any);
+
+    const typedResponse = response as Response;
+    const data = (await typedResponse.json()) as any;
+
+    expect(typedResponse.status).toBe(200);
+    expect(data.data.content).toContain('Visible text');
+    expect(data.data.content).not.toContain('alert("xss")');
+    expect(data.data.content).not.toContain('Phishing nav copy');
+    expect(data.data.content).not.toContain('banner text');
+  });
 });

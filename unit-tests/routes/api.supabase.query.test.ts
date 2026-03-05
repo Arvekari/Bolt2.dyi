@@ -68,4 +68,38 @@ describe('/api/supabase/query', () => {
     expect(response.status).toBe(200);
     expect(data[0].id).toBe(1);
   });
+
+  it('rejects unauthenticated SQL-like payload attempts before upstream call', async () => {
+    const response = await action({
+      request: new Request('http://localhost/api/supabase/query', {
+        method: 'POST',
+        body: JSON.stringify({ projectId: 'p1', query: "SELECT * FROM users WHERE email = '' OR '1'='1';" }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    } as any);
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards SQL payload as request body without local query interpolation', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([{ ok: true }]), { status: 200 }));
+
+    const injectionPayload = "SELECT * FROM users WHERE email = 'a' OR '1'='1'; DROP TABLE users; --";
+
+    const response = await action({
+      request: new Request('http://localhost/api/supabase/query', {
+        method: 'POST',
+        body: JSON.stringify({ projectId: 'safe-project', query: injectionPayload }),
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token' },
+      }),
+    } as any);
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [calledUrl, calledOptions] = fetchMock.mock.calls[0];
+    expect(calledUrl).toContain('/projects/safe-project/database/query');
+    expect(JSON.parse(calledOptions.body).query).toBe(injectionPayload);
+  });
 });

@@ -67,6 +67,7 @@ describe('/api/auth/session + /api/auth/logout', () => {
     const data = await response.json();
     expect(data.authenticated).toBe(false);
     expect(data.requireSignup).toBe(true);
+    expect(data.degraded).toBe(true);
   });
 
   it('clears auth cookies on logout', async () => {
@@ -80,5 +81,6 @@ describe('/api/auth/session + /api/auth/logout', () => {
     const data = await response.json();
     expect(response.status).toBe(200);
     expect(data.ok).toBe(true);
+    expect(response.headers.get('set-cookie')).toContain('Max-Age=0');
   });
 });

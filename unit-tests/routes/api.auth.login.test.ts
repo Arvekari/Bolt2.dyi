@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { enforceRateLimitMock, issueJwtTokenMock } = vi.hoisted(() => ({
+  enforceRateLimitMock: vi.fn(),
+  issueJwtTokenMock: vi.fn(),
+}));
+
 vi.mock('~/lib/.server/auth', () => ({
   createAuthCookies: vi.fn(),
   hashPassword: vi.fn(),
@@ -9,6 +14,14 @@ vi.mock('~/lib/.server/persistence', () => ({
   findUserByUsername: vi.fn(),
 }));
 
+vi.mock('~/platform/security/request-guard', () => ({
+  enforceRateLimit: enforceRateLimitMock,
+}));
+
+vi.mock('~/platform/security/jwt', () => ({
+  issueJwtToken: issueJwtTokenMock,
+}));
+
 import { action } from '~/routes/api.auth.login';
 import { createAuthCookies, hashPassword } from '~/lib/.server/auth';
 import { findUserByUsername } from '~/lib/.server/persistence';
@@ -16,6 +29,30 @@ import { findUserByUsername } from '~/lib/.server/persistence';
 describe('/api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    enforceRateLimitMock.mockReturnValue({
+      requestId: 'req-test-id',
+      blockedResponse: null,
+    });
+    issueJwtTokenMock.mockResolvedValue('jwt-token');
+  });
+
+  it('returns 429 when request is blocked by rate limiter', async () => {
+    enforceRateLimitMock.mockReturnValueOnce({
+      requestId: 'req-blocked',
+      blockedResponse: new Response(JSON.stringify({ ok: false, error: 'Rate limit exceeded' }), { status: 429 }),
+    });
+
+    const response = await action({
+      request: new Request('http://localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'alice', password: 'password123' }),
+      }),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(429);
+    expect(findUserByUsername).not.toHaveBeenCalled();
   });
 
   it('returns 400 when username or password missing', async () => {
@@ -67,9 +104,42 @@ describe('/api/auth/login', () => {
     } as any);
 
     const data = await response.json();
+    const setCookie = response.headers.get('set-cookie') || '';
     expect(response.status).toBe(200);
     expect(data.ok).toBe(true);
+    expect(data.requestId).toBe('req-test-id');
     expect(hashPassword).toHaveBeenCalledWith('password123', 'salt');
+    expect(findUserByUsername).toHaveBeenCalledWith('alice', {});
+    expect(setCookie).toContain('HttpOnly');
+    expect(setCookie).toContain('SameSite=Lax');
+    expect(setCookie).toContain('Max-Age=1209600');
+    expect(response.headers.get('x-request-id')).toBe('req-test-id');
+  });
+
+  it('adds Secure flag to JWT cookie in production-like environments', async () => {
+    vi.mocked(findUserByUsername).mockResolvedValue({
+      id: 'u1',
+      username: 'alice',
+      passwordSalt: 'salt',
+      passwordHash: 'hashed',
+      isAdmin: false,
+    } as any);
+    vi.mocked(hashPassword).mockResolvedValue('hashed');
+    vi.mocked(createAuthCookies).mockResolvedValue(['bolt_session=test; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600']);
+
+    const response = await action({
+      request: new Request('http://localhost/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'Alice', password: 'password123' }),
+      }),
+      context: { cloudflare: { env: { NODE_ENV: 'production' } } },
+    } as any);
+
+    const setCookie = response.headers.get('set-cookie') || '';
+    expect(response.status).toBe(200);
+    expect(setCookie).toContain('bolt_jwt=');
+    expect(setCookie).toContain('Secure');
   });
 
   it('returns JSON 500 when persistence lookup throws', async () => {

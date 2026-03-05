@@ -12,6 +12,12 @@ export default class OpenAIProvider extends BaseProvider {
     apiTokenKey: 'OPENAI_API_KEY',
   };
 
+  private isCompletionOnlyModel(modelName: string): boolean {
+    const normalized = modelName.toLowerCase();
+
+    return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
+  }
+
   staticModels: ModelInfo[] = [
     /*
      * Essential fallback models - only the most stable/reliable ones
@@ -210,6 +216,14 @@ export default class OpenAIProvider extends BaseProvider {
     const openai = createOpenAI({
       apiKey,
     });
+
+    if (this.isCompletionOnlyModel(model)) {
+      const completionFactory = (openai as any).completion;
+
+      if (typeof completionFactory === 'function') {
+        return completionFactory(model);
+      }
+    }
 
     return openai(model);
   }

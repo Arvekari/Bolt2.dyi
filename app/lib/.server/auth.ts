@@ -4,6 +4,14 @@ import { createSession, deleteSession, getSessionUser } from './persistence';
 const SESSION_COOKIE = 'bolt_session';
 const USER_ID_COOKIE = 'bolt_uid';
 
+function shouldUseSecureCookies(env?: Record<string, any>): boolean {
+  const nodeEnv = String(env?.NODE_ENV || '').toLowerCase();
+  const runningInDocker = String(env?.RUNNING_IN_DOCKER || '').toLowerCase() === 'true';
+  const explicitSecure = String(env?.BOLT_COOKIE_SECURE || '').toLowerCase() === 'true';
+
+  return explicitSecure || runningInDocker || nodeEnv === 'production';
+}
+
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -49,9 +57,11 @@ export async function createAuthCookies(userId: string, env?: Record<string, any
     return [] as string[];
   }
 
+  const secureDirective = shouldUseSecureCookies(env) ? '; Secure' : '';
+
   return [
-    `${SESSION_COOKIE}=${encodeURIComponent(session.token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`,
-    `${USER_ID_COOKIE}=${encodeURIComponent(userId)}; Path=/; SameSite=Lax; Max-Age=1209600`,
+    `${SESSION_COOKIE}=${encodeURIComponent(session.token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600${secureDirective}`,
+    `${USER_ID_COOKIE}=${encodeURIComponent(userId)}; Path=/; SameSite=Lax; Max-Age=1209600${secureDirective}`,
   ];
 }
 
@@ -62,8 +72,10 @@ export async function clearAuthCookies(request: Request, env?: Record<string, an
     await deleteSession(token, env);
   }
 
+  const secureDirective = shouldUseSecureCookies(env) ? '; Secure' : '';
+
   return [
-    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-    `${USER_ID_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`,
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secureDirective}`,
+    `${USER_ID_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0${secureDirective}`,
   ];
 }

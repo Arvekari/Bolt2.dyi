@@ -43,7 +43,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
       { sub: user.id, role: user.isAdmin ? 'admin' : 'user' },
       { jwtSecret, ttlSeconds: 60 * 60 * 24 * 14 },
     );
-    headers.append('Set-Cookie', `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600`);
+    const secureCookieDirective =
+      String(env?.BOLT_COOKIE_SECURE || '').toLowerCase() === 'true' ||
+      String(env?.RUNNING_IN_DOCKER || '').toLowerCase() === 'true' ||
+      String(env?.NODE_ENV || '').toLowerCase() === 'production'
+        ? '; Secure'
+        : '';
+
+    headers.append(
+      'Set-Cookie',
+      `bolt_jwt=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1209600${secureCookieDirective}`,
+    );
 
     headers.set('x-request-id', requestId);
 
