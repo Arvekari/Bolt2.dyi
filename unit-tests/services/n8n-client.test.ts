@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { deployN8nWorkflow, isN8nConfigured } from '~/lib/.server/extensions/n8n/n8n-client';
+import { deployN8nWorkflow, isN8nConfigured, updateN8nWorkflow } from '~/lib/.server/extensions/n8n/n8n-client';
 
 describe('n8n-client', () => {
   beforeEach(() => {
@@ -70,5 +70,55 @@ describe('n8n-client', () => {
         env: { N8N_BASE_URL: 'http://localhost:5678', N8N_API_KEY: 'secret' },
       }),
     ).rejects.toThrow(/n8n.*500/i);
+  });
+
+  it('updates workflow and returns metadata', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch' as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'wf-123', active: true, name: 'demo updated' }),
+    } as Response);
+
+    const result = await updateN8nWorkflow({
+      workflowId: 'wf-123',
+      workflow: { id: 'wf-123', name: 'demo updated', nodes: [], connections: {} },
+      env: { N8N_BASE_URL: 'http://localhost:5678', N8N_API_KEY: 'secret' },
+    });
+
+    expect(result.workflowId).toBe('wf-123');
+    expect(result.active).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('activates updated workflow when activate flag is true', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch' as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'wf-999', active: false }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'wf-999', active: true }),
+      } as Response);
+
+    const result = await updateN8nWorkflow({
+      workflowId: 'wf-999',
+      workflow: { id: 'wf-999', name: 'demo updated', nodes: [], connections: {} },
+      activate: true,
+      env: { N8N_BASE_URL: 'http://localhost:5678', N8N_API_KEY: 'secret' },
+    });
+
+    expect(result.workflowId).toBe('wf-999');
+    expect(result.active).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws when update workflow id is missing', async () => {
+    await expect(
+      updateN8nWorkflow({
+        workflow: { name: 'demo', nodes: [], connections: {} },
+        env: { N8N_BASE_URL: 'http://localhost:5678', N8N_API_KEY: 'secret' },
+      }),
+    ).rejects.toThrow(/workflowId.*required/i);
   });
 });

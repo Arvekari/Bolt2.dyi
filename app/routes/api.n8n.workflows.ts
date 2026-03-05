@@ -1,5 +1,5 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from '@remix-run/cloudflare';
-import { deployN8nWorkflow, isN8nConfigured } from '~/lib/.server/extensions/n8n/n8n-client';
+import { deployN8nWorkflow, isN8nConfigured, updateN8nWorkflow } from '~/lib/.server/extensions/n8n/n8n-client';
 import { readPersistedMemory } from '~/lib/.server/persistence';
 import { createScopedLogger } from '~/utils/logger';
 
@@ -10,6 +10,24 @@ type DeployWorkflowRequestBody = {
   workflow?: Record<string, unknown>;
   activate?: boolean;
 };
+
+type UpdateWorkflowRequestBody = {
+  intent: 'update';
+  workflowId?: string;
+  workflow?: Record<string, unknown>;
+  activate?: boolean;
+};
+
+type WorkflowRequestBody = DeployWorkflowRequestBody | UpdateWorkflowRequestBody;
+
+function hasN8nWorkflowShape(workflow: Record<string, unknown>) {
+  const hasName = typeof workflow.name === 'string' && workflow.name.trim().length > 0;
+  const hasNodes = Array.isArray(workflow.nodes);
+  const hasConnections =
+    workflow.connections !== null && typeof workflow.connections === 'object' && !Array.isArray(workflow.connections);
+
+  return hasName && hasNodes && hasConnections;
+}
 
 async function resolveN8nEnv(env?: Record<string, string | undefined>) {
   const resolved: Record<string, string | undefined> = {
@@ -60,9 +78,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const resolvedEnv = await resolveN8nEnv(env);
 
   try {
-    const body = (await request.json()) as DeployWorkflowRequestBody;
+    const body = (await request.json()) as WorkflowRequestBody;
 
-    if (body.intent !== 'deploy') {
+    if (body.intent !== 'deploy' && body.intent !== 'update') {
       return Response.json({ error: 'Unsupported intent' }, { status: 400 });
     }
 
@@ -70,19 +88,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
       return Response.json({ error: 'workflow payload is required' }, { status: 400 });
     }
 
+    if (!hasN8nWorkflowShape(body.workflow)) {
+      return Response.json(
+        {
+          error:
+            'workflow payload must include non-empty name, nodes array, and connections object in n8n workflow JSON format',
+        },
+        { status: 400 },
+      );
+    }
+
     if (!isN8nConfigured(resolvedEnv)) {
       return Response.json({ error: 'n8n integration is not configured' }, { status: 503 });
     }
 
-    const result = await deployN8nWorkflow({
-      workflow: body.workflow,
-      activate: body.activate,
-      env: resolvedEnv,
-    });
+    const result =
+      body.intent === 'deploy'
+        ? await deployN8nWorkflow({
+            workflow: body.workflow,
+            activate: body.activate,
+            env: resolvedEnv,
+          })
+        : await updateN8nWorkflow({
+            workflowId: body.workflowId,
+            workflow: body.workflow,
+            activate: body.activate,
+            env: resolvedEnv,
+          });
 
     return Response.json(result, { status: 201 });
   } catch (error) {
-    logger.error('n8n workflow deployment failed', error);
-    return Response.json({ error: 'Failed to deploy n8n workflow' }, { status: 500 });
+    logger.error('n8n workflow action failed', error);
+    return Response.json({ error: 'Failed to process n8n workflow request' }, { status: 500 });
   }
 }

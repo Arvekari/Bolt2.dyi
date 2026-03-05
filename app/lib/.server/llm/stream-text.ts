@@ -61,6 +61,14 @@ function sanitizeText(text: string): string {
   return sanitized.trim();
 }
 
+export function hasToolDefinitions(tools: unknown): boolean {
+  if (!tools || typeof tools !== 'object' || Array.isArray(tools)) {
+    return false;
+  }
+
+  return Object.keys(tools as Record<string, unknown>).length > 0;
+}
+
 export async function streamText(props: {
   messages: Omit<Message, 'id'>[];
   env?: Env;
@@ -306,6 +314,13 @@ ${customPromptBody}
       : baseOptions;
 
   if (completionOnlyModel) {
+    delete (filteredOptions as any).tools;
+    delete (filteredOptions as any).toolChoice;
+    delete (filteredOptions as any).maxSteps;
+    delete (filteredOptions as any).onStepFinish;
+  }
+
+  if (!hasToolDefinitions((filteredOptions as any).tools)) {
     delete (filteredOptions as any).tools;
     delete (filteredOptions as any).toolChoice;
     delete (filteredOptions as any).maxSteps;

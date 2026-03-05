@@ -7,7 +7,21 @@ export type N8nDeployInput = {
   signal?: AbortSignal;
 };
 
+export type N8nUpdateInput = {
+  workflowId?: string;
+  workflow: Record<string, unknown>;
+  activate?: boolean;
+  env?: EnvLike;
+  signal?: AbortSignal;
+};
+
 export type N8nDeployResult = {
+  workflowId: string;
+  active: boolean;
+  raw: Record<string, unknown>;
+};
+
+export type N8nUpdateResult = {
   workflowId: string;
   active: boolean;
   raw: Record<string, unknown>;
@@ -78,6 +92,46 @@ function getWorkflowId(payload: Record<string, unknown>): string {
   throw new Error('n8n workflow id missing from create response');
 }
 
+function resolveWorkflowId(explicitWorkflowId: string | undefined, workflow: Record<string, unknown>): string {
+  if (typeof explicitWorkflowId === 'string' && explicitWorkflowId.trim().length > 0) {
+    return explicitWorkflowId.trim();
+  }
+
+  const fromWorkflow = workflow.id;
+
+  if (typeof fromWorkflow === 'string' && fromWorkflow.trim().length > 0) {
+    return fromWorkflow.trim();
+  }
+
+  if (typeof fromWorkflow === 'number' && Number.isFinite(fromWorkflow)) {
+    return String(fromWorkflow);
+  }
+
+  throw new Error('workflowId is required for n8n update intent');
+}
+
+async function activateWorkflow(workflowId: string, env?: EnvLike, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  const baseUrl = getBaseUrl(env);
+  const apiKey = getApiKey(env);
+  const { signal: activateSignal, timeoutId: activateTimeoutId } = withTimeoutController(env, signal);
+  const activateResponse = await fetch(`${baseUrl}/api/v1/workflows/${encodeURIComponent(workflowId)}/activate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-N8N-API-KEY': apiKey,
+    },
+    signal: activateSignal,
+  }).finally(() => {
+    clearTimeout(activateTimeoutId);
+  });
+
+  if (!activateResponse.ok) {
+    throw new Error(`n8n activate workflow failed with ${activateResponse.status}`);
+  }
+
+  return (await activateResponse.json()) as Record<string, unknown>;
+}
+
 export function isN8nConfigured(env?: EnvLike): boolean {
   return Boolean(getEnvValue(env, 'N8N_BASE_URL') && getEnvValue(env, 'N8N_API_KEY'));
 }
@@ -114,29 +168,57 @@ export async function deployN8nWorkflow(input: N8nDeployInput): Promise<N8nDeplo
     };
   }
 
-  const { signal: activateSignal, timeoutId: activateTimeoutId } = withTimeoutController(input.env, input.signal);
-  const activateResponse = await fetch(`${baseUrl}/api/v1/workflows/${encodeURIComponent(workflowId)}/activate`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-N8N-API-KEY': apiKey,
-    },
-    signal: activateSignal,
-  }).finally(() => {
-    clearTimeout(activateTimeoutId);
-  });
-
-  if (!activateResponse.ok) {
-    throw new Error(`n8n activate workflow failed with ${activateResponse.status}`);
-  }
-
-  const activated = (await activateResponse.json()) as Record<string, unknown>;
+  const activated = await activateWorkflow(workflowId, input.env, input.signal);
 
   return {
     workflowId,
     active: activated.active === undefined ? true : Boolean(activated.active),
     raw: {
       created,
+      activated,
+    },
+  };
+}
+
+export async function updateN8nWorkflow(input: N8nUpdateInput): Promise<N8nUpdateResult> {
+  const baseUrl = getBaseUrl(input.env);
+  const apiKey = getApiKey(input.env);
+  const workflowId = resolveWorkflowId(input.workflowId, input.workflow);
+  const { signal, timeoutId } = withTimeoutController(input.env, input.signal);
+
+  const updateResponse = await fetch(`${baseUrl}/api/v1/workflows/${encodeURIComponent(workflowId)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-N8N-API-KEY': apiKey,
+    },
+    body: JSON.stringify(input.workflow),
+    signal,
+  }).finally(() => {
+    clearTimeout(timeoutId);
+  });
+
+  if (!updateResponse.ok) {
+    throw new Error(`n8n update workflow failed with ${updateResponse.status}`);
+  }
+
+  const updated = (await updateResponse.json()) as Record<string, unknown>;
+
+  if (!input.activate) {
+    return {
+      workflowId,
+      active: updated.active === undefined ? false : Boolean(updated.active),
+      raw: updated,
+    };
+  }
+
+  const activated = await activateWorkflow(workflowId, input.env, input.signal);
+
+  return {
+    workflowId,
+    active: activated.active === undefined ? true : Boolean(activated.active),
+    raw: {
+      updated,
       activated,
     },
   };
