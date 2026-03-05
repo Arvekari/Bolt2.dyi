@@ -210,25 +210,33 @@ export function CollabPanel() {
   };
 
   const mergeCandidates = branches.filter((branch) => !branch.isMain && branch.status === 'active');
+  const canCreateProject = newProjectName.trim().length > 0;
+  const canShareProject = Boolean(collab.selectedProjectId && shareUsername.trim().length > 0);
+  const canCreateConversation = Boolean(collab.selectedProjectId);
+
+  const fieldClassName =
+    'w-full rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary placeholder:text-bolt-elements-textTertiary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive';
+  const selectClassName =
+    'w-full rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive';
 
   return (
-    <div className="mx-4 mb-3 rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-gray-50 dark:bg-gray-900/60 space-y-2">
-      <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">Shared Collaboration</div>
+    <div className="mx-4 mb-3 space-y-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 p-3">
+      <div className="text-xs font-semibold text-bolt-elements-textSecondary">Shared Collaboration</div>
 
       <div className="flex gap-2">
         <input
-          className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+          className={fieldClassName}
           value={newProjectName}
           onChange={(event) => setNewProjectName(event.target.value)}
           placeholder="New project name"
         />
-        <Button size="sm" onClick={createProject}>
+        <Button size="sm" variant="outline" onClick={createProject} disabled={!canCreateProject}>
           Create
         </Button>
       </div>
 
       <select
-        className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+        className={selectClassName}
         value={collab.selectedProjectId || ''}
         onChange={(event) => {
           const projectId = event.target.value || undefined;
@@ -248,20 +256,20 @@ export function CollabPanel() {
       {collab.selectedProjectId && (
         <div className="flex gap-2">
           <input
-            className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+            className={fieldClassName}
             value={shareUsername}
             onChange={(event) => setShareUsername(event.target.value)}
             placeholder="username to share"
           />
           <select
-            className="rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+            className="rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive"
             value={shareRole}
             onChange={(event) => setShareRole(event.target.value as 'editor' | 'viewer')}
           >
             <option value="editor">editor</option>
             <option value="viewer">viewer</option>
           </select>
-          <Button size="sm" onClick={shareProject}>
+          <Button size="sm" variant="outline" onClick={shareProject} disabled={!canShareProject}>
             Share
           </Button>
         </div>
@@ -270,12 +278,12 @@ export function CollabPanel() {
       {collab.selectedProjectId && (
         <div className="flex gap-2">
           <input
-            className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+            className={fieldClassName}
             value={newConversationTitle}
             onChange={(event) => setNewConversationTitle(event.target.value)}
             placeholder="New shared conversation"
           />
-          <Button size="sm" onClick={createConversation}>
+          <Button size="sm" variant="outline" onClick={createConversation} disabled={!canCreateConversation}>
             New
           </Button>
         </div>
@@ -283,7 +291,7 @@ export function CollabPanel() {
 
       {collab.selectedProjectId && (
         <select
-          className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+          className={selectClassName}
           value={collab.selectedConversationId || ''}
           onChange={(event) => {
             const conversationId = event.target.value || undefined;
@@ -302,9 +310,9 @@ export function CollabPanel() {
 
       {collab.selectedConversationId && (
         <div className="flex gap-2 items-center">
-          <span className="text-[11px] text-gray-600 dark:text-gray-400">Branch:</span>
+          <span className="text-[11px] text-bolt-elements-textSecondary">Branch:</span>
           <select
-            className="rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+            className="rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive"
             value={collab.branchMode}
             onChange={(event) => {
               setCollabBranchMode(event.target.value as 'user' | 'main');
@@ -330,7 +338,7 @@ export function CollabPanel() {
       {collab.selectedConversationId && activeProject?.role !== 'viewer' && (
         <div className="flex gap-2">
           <select
-            className="w-full rounded-md bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 px-2 py-1 text-xs"
+            className={selectClassName}
             value={mergeBranchId}
             onChange={(event) => setMergeBranchId(event.target.value)}
           >
