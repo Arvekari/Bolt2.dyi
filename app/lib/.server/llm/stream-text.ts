@@ -33,7 +33,7 @@ function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): b
   }
 
   const normalized = modelName.toLowerCase();
-  return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
+  return normalized.endsWith('-instruct') || normalized.startsWith('text-');
 }
 
 export function isToolCallingDisabledForProvider(providerName: string): boolean {

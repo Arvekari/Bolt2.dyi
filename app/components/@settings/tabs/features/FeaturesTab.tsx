@@ -335,10 +335,10 @@ export default function FeaturesTab() {
       {
         id: 'latestBranch',
         title: 'Main Branch Updates',
-        description: 'Get the latest updates from the main branch',
+        description: 'Notify when a newer Bolt2.dyi version is available and allow update attempts',
         icon: 'i-ph:git-branch',
         enabled: isLatestBranch,
-        tooltip: 'Enabled by default to receive updates from the main development branch',
+        tooltip: 'When enabled, the app checks Bolt2.dyi main releases and can attempt internal update flow where supported',
       },
       {
         id: 'autoSelectTemplate',

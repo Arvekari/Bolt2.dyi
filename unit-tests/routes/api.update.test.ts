@@ -19,4 +19,21 @@ describe('/api/update', () => {
     expect(Array.isArray(data.instructions)).toBe(true);
     expect(data.instructions.length).toBeGreaterThan(0);
   });
+
+  it('returns explicit capability response for auto update intent', async () => {
+    const response = await action({
+      request: new Request('http://localhost/api/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: 'auto', targetVersion: '1.2.3' }),
+      }),
+    } as any);
+
+    const typedResponse = response as Response;
+    expect(typedResponse.status).toBe(501);
+    const data = (await typedResponse.json()) as any;
+    expect(data.canAutoUpdate).toBe(false);
+    expect(data.message).toContain('Automatic self-update is not available');
+    expect(Array.isArray(data.instructions)).toBe(true);
+  });
 });

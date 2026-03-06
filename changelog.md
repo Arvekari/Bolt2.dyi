@@ -14,17 +14,40 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Admin-settings fallback support for n8n credentials when environment variables are not set.
 - First-run setup guard that requires database selection before first user creation.
 - Auth setup UI branding updates for bolt2.dyi logo usage.
+- n8n workflow `update` intent support with payload shape validation in `/api/n8n/workflows`.
+- Update notification flow that checks upstream fork version and notifies users when running an older version.
+- Optional “Update now” action wiring (`/api/update` intent `auto`) with explicit manual-update fallback messaging.
 
 ### Changed
 
 - Authentication and session API routes now return structured JSON fallbacks on backend/network failures.
 - PostgREST persistence request handling now degrades gracefully on fetch errors.
 - Main README now documents n8n integration behavior and configuration expectations.
+- OpenAI provider routing for codex models now targets `responses` model factory instead of legacy completion routing.
+- Main branch update setting text now reflects release notification + update-attempt behavior.
+- AI SDK dependency stack was upgraded to latest major versions (`ai` and `@ai-sdk/*` family).
+- Pre-commit workflow now requires `changelog.md` to be staged for every commit.
+- Unit-test mapping script now allows same-commit baseline test file creation instead of hard-failing resolved sequence violations.
 
 ### Fixed
 
 - TypeScript typecheck failure in n8n workflows route (`Env` cast compatibility issue).
 - First-use auth flow behavior that could surface generic network errors during signup/login scenarios.
+- Stream parameter handling for OpenAI-based requests now avoids completion-only misclassification for codex models.
+- Collaboration panel sidebar contrast and disabled interaction states were improved for readability/usability.
+
+### Verification
+
+- Targeted unit tests passed for OpenAI provider routing, stream-tools guard behavior, and update API/client flows.
+- Live smoke checks validated current SDK behavior for `gpt-4o` and `gpt-5.3-codex` (`responses` path for codex).
+- Added explicit unit tests for update check/self-update client behavior and codex `responses` provider routing.
+
+### Known possible issues
+
+- Pre-commit hook enforces test-first mapping: if a changed source file lacks a baseline unit test file, commit is blocked until test skeletons exist.
+- `gpt-5.3-codex` may fail on `/chat/completions` in direct API usage; it is expected to work through `responses` routing.
+- Runtime self-update is not fully automatic in this environment; `/api/update` currently returns manual update instructions.
+- Generated placeholder tests from hook automation may need real assertions before merge-quality completion.
 
 ## [0.1.0] - 2026-03-04
 

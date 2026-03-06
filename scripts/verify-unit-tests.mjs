@@ -30,6 +30,27 @@ function getChangedFiles() {
   return [];
 }
 
+function getStagedFiles() {
+  try {
+    const output = execSync('git diff --cached --name-only --diff-filter=ACMR', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+
+    if (!output) {
+      return [];
+    }
+
+    return output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 function isSourceFile(file) {
   if (!file.startsWith('app/')) {
     return false;
@@ -118,6 +139,13 @@ function createMissingTest(file) {
 
 const shouldCreateMissing = process.argv.includes('--create-missing');
 
+const stagedFiles = getStagedFiles();
+if (stagedFiles.length > 0 && !stagedFiles.includes('changelog.md')) {
+  console.error('Missing required changelog update.');
+  console.error('Rule: changelog.md must be updated and staged before every commit.');
+  process.exit(1);
+}
+
 const changed = getChangedFiles();
 
 if (changed.length === 0) {
@@ -126,24 +154,27 @@ if (changed.length === 0) {
 }
 
 const sourceFiles = changed.filter(isSourceFile);
-const missing = sourceFiles.filter((file) => !hasMatchingTest(file));
+const initialMissing = sourceFiles.filter((file) => !hasMatchingTest(file));
 const sequenceViolations = sourceFiles.filter((file) => fileExistsInHead(file) && !hasMatchingTestInHead(file));
+const created = [];
 
-if (missing.length > 0 || sequenceViolations.length > 0) {
-  const created = [];
-
-  if (shouldCreateMissing) {
-    for (const file of missing) {
-      const createdPath = createMissingTest(file);
-      if (createdPath) {
-        created.push(createdPath);
-      }
+if (shouldCreateMissing) {
+  for (const file of initialMissing) {
+    const createdPath = createMissingTest(file);
+    if (createdPath) {
+      created.push(createdPath);
     }
   }
+}
 
-  if (sequenceViolations.length > 0) {
+const missing = sourceFiles.filter((file) => !hasMatchingTest(file));
+const unresolvedSequenceViolations = sequenceViolations.filter((file) => !hasMatchingTest(file));
+
+if (missing.length > 0 || unresolvedSequenceViolations.length > 0) {
+
+  if (unresolvedSequenceViolations.length > 0) {
     console.error('Test-first sequence violation (source files changed before baseline test existed):');
-    for (const file of sequenceViolations) {
+    for (const file of unresolvedSequenceViolations) {
       console.error(` - ${file}`);
     }
   }
@@ -166,7 +197,7 @@ if (missing.length > 0 || sequenceViolations.length > 0) {
   console.error('If missing, create one first based on an existing similar test under unit-tests/.');
   console.error('If behavior changed, update the related test content in the same commit.');
 
-  if (sequenceViolations.length > 0) {
+  if (unresolvedSequenceViolations.length > 0) {
     console.error('For existing source files with no prior tests, add/commit the baseline test first, then apply source changes.');
   }
 
@@ -174,6 +205,13 @@ if (missing.length > 0 || sequenceViolations.length > 0) {
     console.error('Stage the newly created test file(s), implement real assertions, and commit again.');
   }
   process.exit(1);
+}
+
+if (sequenceViolations.length > 0 && created.length > 0) {
+  console.warn('Resolved prior test-first violations by creating matching baseline tests in this change set:');
+  for (const file of created) {
+    console.warn(` + ${file}`);
+  }
 }
 
 console.log('Unit-test mapping check passed for changed files.');

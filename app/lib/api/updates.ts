@@ -1,11 +1,20 @@
 export interface UpdateCheckResult {
   available: boolean;
+  currentVersion: string;
   version: string;
+  source: string;
   releaseNotes?: string;
   error?: {
     type: 'rate_limit' | 'network' | 'auth' | 'unknown';
     message: string;
   };
+}
+
+export interface SelfUpdateResult {
+  ok: boolean;
+  message?: string;
+  canAutoUpdate?: boolean;
+  instructions?: string[];
 }
 
 interface PackageJson {
@@ -51,12 +60,14 @@ export const checkForUpdates = async (): Promise<UpdateCheckResult> => {
 
     const currentVersion = packageData.version;
 
+    const source = 'Arvekari/Bolt2.dyi';
+
     /*
      * Get the latest version from GitHub's main branch package.json
      * Using raw.githubusercontent.com which doesn't require authentication
      */
     const latestPackageResponse = await fetch(
-      'https://raw.githubusercontent.com/stackblitz-labs/bolt.diy/main/package.json',
+      'https://raw.githubusercontent.com/Arvekari/Bolt2.dyi/main/package.json',
     );
 
     if (!latestPackageResponse.ok) {
@@ -76,7 +87,9 @@ export const checkForUpdates = async (): Promise<UpdateCheckResult> => {
 
     return {
       available: hasUpdate,
+      currentVersion,
       version: latestVersion,
+      source,
       releaseNotes: hasUpdate ? 'Update available. Check GitHub for release notes.' : undefined,
     };
   } catch (error) {
@@ -89,7 +102,9 @@ export const checkForUpdates = async (): Promise<UpdateCheckResult> => {
 
     return {
       available: false,
+      currentVersion: 'unknown',
       version: 'unknown',
+      source: 'Arvekari/Bolt2.dyi',
       error: {
         type: isNetworkError ? 'network' : 'unknown',
         message: `Failed to check for updates: ${errorMessage}`,
@@ -104,5 +119,41 @@ export const acknowledgeUpdate = async (version: string): Promise<void> => {
     localStorage.setItem('last_acknowledged_update', version);
   } catch (error) {
     console.error('Failed to store acknowledged version:', error);
+  }
+};
+
+export const requestSelfUpdate = async (targetVersion: string): Promise<SelfUpdateResult> => {
+  try {
+    const response = await fetch('/api/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        intent: 'auto',
+        targetVersion,
+      }),
+    });
+
+    const data = (await response.json()) as SelfUpdateResult;
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        message: data.message || data.instructions?.[0] || data.message || 'Failed to trigger update',
+        canAutoUpdate: data.canAutoUpdate,
+        instructions: data.instructions,
+      };
+    }
+
+    return data;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    return {
+      ok: false,
+      message: `Failed to request self-update: ${message}`,
+      canAutoUpdate: false,
+    };
   }
 };

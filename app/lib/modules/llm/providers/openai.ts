@@ -15,7 +15,12 @@ export default class OpenAIProvider extends BaseProvider {
   private isCompletionOnlyModel(modelName: string): boolean {
     const normalized = modelName.toLowerCase();
 
-    return normalized.includes('codex') || normalized.endsWith('-instruct') || normalized.startsWith('text-');
+    return normalized.endsWith('-instruct') || normalized.startsWith('text-');
+  }
+
+  private isResponsesModel(modelName: string): boolean {
+    const normalized = modelName.toLowerCase();
+    return normalized.includes('codex');
   }
 
   staticModels: ModelInfo[] = [
@@ -216,6 +221,14 @@ export default class OpenAIProvider extends BaseProvider {
     const openai = createOpenAI({
       apiKey,
     });
+
+    if (this.isResponsesModel(model)) {
+      const responsesFactory = (openai as any).responses;
+
+      if (typeof responsesFactory === 'function') {
+        return responsesFactory(model);
+      }
+    }
 
     if (this.isCompletionOnlyModel(model)) {
       const completionFactory = (openai as any).completion;
