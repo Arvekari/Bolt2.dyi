@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasToolDefinitions, isToolCallingDisabledForProvider } from '~/lib/.server/llm/stream-text';
+import { hasToolDefinitions, isOpenAIResponsesModel, isToolCallingDisabledForProvider } from '~/lib/.server/llm/stream-text';
 
 describe('lib/.server/llm/stream-text baseline', () => {
   it('exposes helper behavior for tool definitions', () => {
@@ -11,5 +11,11 @@ describe('lib/.server/llm/stream-text baseline', () => {
   it('keeps tool-calling enabled by default for providers', () => {
     expect(isToolCallingDisabledForProvider('OpenAI')).toBe(false);
     expect(isToolCallingDisabledForProvider('Anthropic')).toBe(false);
+  });
+
+  it('detects OpenAI responses models for codex variants only', () => {
+    expect(isOpenAIResponsesModel('OpenAI', 'gpt-5.3-codex')).toBe(true);
+    expect(isOpenAIResponsesModel('OpenAI', 'gpt-4o')).toBe(false);
+    expect(isOpenAIResponsesModel('Anthropic', 'claude-3-5-sonnet')).toBe(false);
   });
 });

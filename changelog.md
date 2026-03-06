@@ -11,11 +11,14 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Added
 
 - Internal AI SDK MCP compatibility regression unit test to catch missing MCP exports/subpaths before commit/push.
+- Push-phase SDK regression command (`test:unit:sdk-regressions`) for repeatable pre-push validation.
+- GitHub Actions watcher script to monitor workflow outcomes for pushed SHA (`scripts/watch-gh-actions.mjs`).
 
 ### Changed
 
 - MCP service imports were migrated from legacy `ai` subpaths to `@ai-sdk/mcp` and `@ai-sdk/mcp/mcp-stdio` for AI SDK v6 compatibility.
 - CI workflow changelog gate now runs with direct Node script execution in the test job, removing early-step `pnpm` dependency ordering issues.
+- Added mandatory `pre-push` guardrail hook: runs typecheck, changed-file test mapping, SDK regression tests, and starts background GH Actions monitoring.
 
 ### Fixed
 

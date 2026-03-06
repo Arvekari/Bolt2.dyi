@@ -18,6 +18,8 @@
     "test:unit": "vitest --run unit-tests",
     "test:unit:watch": "vitest unit-tests",
     "test:unit:changed": "node scripts/verify-unit-tests.mjs",
+    "test:unit:sdk-regressions": "node scripts/verify-sdk-regressions.mjs",
+    "ci:watch:head": "node scripts/watch-gh-actions.mjs --sha HEAD",
     "lint:staged": "node scripts/verify-lint-staged.mjs",
     "verify:changelog:ci": "node scripts/verify-changelog-ci.mjs",
     "test:coverage": "vitest --run --coverage",

@@ -1,5 +1,5 @@
 import { type ActionFunctionArgs } from '@remix-run/cloudflare';
-import { streamText } from '~/lib/.server/llm/stream-text';
+import { isOpenAIResponsesModel, streamText } from '~/lib/.server/llm/stream-text';
 import type { IProviderSetting, ProviderInfo } from '~/types/model';
 import { generateText } from 'ai';
 import { PROVIDER_LIST } from '~/utils/constants';
@@ -31,6 +31,7 @@ function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): b
   }
 
   const normalized = modelName.toLowerCase();
+
   return normalized.endsWith('-instruct') || normalized.startsWith('text-');
 }
 
@@ -216,12 +217,15 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
       // DEBUG: Log model execution mode
       const completionOnlyModel = isCompletionOnlyOpenAIModel(provider.name, modelDetails.name);
       const isReasoning = !completionOnlyModel && isReasoningModel(modelDetails.name);
-      logger.info(
-        `DEBUG: Model "${modelDetails.name}" completionOnly=${completionOnlyModel} reasoning=${isReasoning}`,
-      );
+      logger.info(`DEBUG: Model "${modelDetails.name}" completionOnly=${completionOnlyModel} reasoning=${isReasoning}`);
 
-      // Use maxCompletionTokens for reasoning models (o1, GPT-5), maxTokens for traditional models
-      const tokenParams = isReasoning ? { maxCompletionTokens: dynamicMaxTokens } : { maxTokens: dynamicMaxTokens };
+      const isResponsesModel = isOpenAIResponsesModel(provider.name, modelDetails.name);
+
+      const tokenParams = isResponsesModel
+        ? { maxOutputTokens: dynamicMaxTokens }
+        : isReasoning
+          ? { maxCompletionTokens: dynamicMaxTokens }
+          : { maxTokens: dynamicMaxTokens };
 
       // Filter out unsupported parameters for reasoning models
       const baseParams: Record<string, any> = {
@@ -246,9 +250,11 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         delete baseParams.toolChoice;
       }
 
-      // For reasoning models, set temperature to 1 (required by OpenAI API)
+      // For reasoning chat models, set temperature to 1 (required by OpenAI API)
       const finalParams = isReasoning
-        ? { ...baseParams, temperature: 1 } // Set to 1 for reasoning models (only supported value)
+        ? isResponsesModel
+          ? { ...baseParams }
+          : { ...baseParams, temperature: 1 } // Set to 1 for reasoning models (only supported value)
         : { ...baseParams, temperature: 0 };
 
       // DEBUG: Log final parameters
@@ -260,6 +266,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
             hasTemperature: 'temperature' in finalParams,
             hasMaxTokens: 'maxTokens' in finalParams,
             hasMaxCompletionTokens: 'maxCompletionTokens' in finalParams,
+            hasMaxOutputTokens: 'maxOutputTokens' in finalParams,
             paramKeys: Object.keys(finalParams).filter((key) => !['model', 'messages', 'system'].includes(key)),
             tokenParams,
             finalParams: Object.fromEntries(

@@ -16,6 +16,7 @@ const {
 
 vi.mock('~/lib/.server/llm/stream-text', () => ({
   streamText: streamTextMock,
+  isOpenAIResponsesModel: vi.fn((provider: string, model: string) => provider === 'OpenAI' && /codex/i.test(model)),
 }));
 
 vi.mock('ai', () => ({
@@ -139,5 +140,81 @@ describe('/api/llmcall', () => {
     expect(response.status).toBe(200);
     expect(data.text).toBe('generated');
     expect(generateTextMock).toHaveBeenCalled();
+  });
+
+  it('uses maxOutputTokens for codex responses models', async () => {
+    updateModelListMock.mockResolvedValue([
+      {
+        name: 'gpt-5.3-codex',
+        provider: 'OpenAI',
+        maxTokenAllowed: 128000,
+        maxCompletionTokens: 64000,
+      },
+    ]);
+    isReasoningModelMock.mockReturnValue(true);
+    generateTextMock.mockResolvedValue({ text: 'generated' });
+
+    const response = await action({
+      request: new Request('http://localhost/api/llmcall', {
+        method: 'POST',
+        body: JSON.stringify({
+          system: 'sys',
+          message: 'hello',
+          model: 'gpt-5.3-codex',
+          provider: { name: 'OpenAI' },
+          streamOutput: false,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(200);
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxOutputTokens: 64000,
+      }),
+    );
+
+    const calledParams = generateTextMock.mock.calls[0][0];
+    expect(calledParams.maxTokens).toBeUndefined();
+    expect(calledParams.maxCompletionTokens).toBeUndefined();
+    expect(calledParams.temperature).toBeUndefined();
+  });
+
+  it('keeps maxTokens and temperature for gpt-4o chat models', async () => {
+    updateModelListMock.mockResolvedValue([
+      {
+        name: 'gpt-4o',
+        provider: 'OpenAI',
+        maxTokenAllowed: 128000,
+        maxCompletionTokens: 4096,
+      },
+    ]);
+    isReasoningModelMock.mockReturnValue(false);
+    generateTextMock.mockResolvedValue({ text: 'generated' });
+
+    const response = await action({
+      request: new Request('http://localhost/api/llmcall', {
+        method: 'POST',
+        body: JSON.stringify({
+          system: 'sys',
+          message: 'hello',
+          model: 'gpt-4o',
+          provider: { name: 'OpenAI' },
+          streamOutput: false,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      context: { cloudflare: { env: {} } },
+    } as any);
+
+    expect(response.status).toBe(200);
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxTokens: 4096,
+        temperature: 0,
+      }),
+    );
   });
 });

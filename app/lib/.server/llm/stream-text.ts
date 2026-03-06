@@ -37,6 +37,16 @@ function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): b
   return normalized.endsWith('-instruct') || normalized.startsWith('text-');
 }
 
+export function isOpenAIResponsesModel(providerName: string, modelName: string): boolean {
+  if (providerName !== 'OpenAI') {
+    return false;
+  }
+
+  const normalized = modelName.toLowerCase();
+
+  return normalized.includes('codex');
+}
+
 export function isToolCallingDisabledForProvider(_providerName: string): boolean {
   return false;
 }
@@ -294,14 +304,18 @@ ${customPromptBody}
     );
   }
 
-  // Use maxCompletionTokens for reasoning models (o1, GPT-5), maxTokens for traditional models
-  const tokenParams = isReasoning ? { maxCompletionTokens: safeMaxTokens } : { maxTokens: safeMaxTokens };
-
   const baseOptions = { ...(options || {}) } as Record<string, any>;
   delete baseOptions.supabaseConnection;
+  delete baseOptions.maxTokens;
+  delete baseOptions.maxCompletionTokens;
+  delete baseOptions.maxOutputTokens;
+
+  const sanitizedBaseOptions = Object.fromEntries(
+    Object.entries(baseOptions).filter(([_key, value]) => value !== undefined),
+  );
 
   // Filter out unsupported parameters for reasoning models
-  let filteredOptions = baseOptions;
+  let filteredOptions = sanitizedBaseOptions;
 
   if (isReasoning) {
     filteredOptions = Object.fromEntries(
@@ -370,6 +384,13 @@ ${customPromptBody}
     `Prompt policy selected profile: ${optimizedPrompt.profile.modelClass} (pruned=${optimizedPrompt.diagnostics.wasPruned})`,
   );
 
+  const isResponsesModel = isOpenAIResponsesModel(provider.name, modelDetails.name);
+  const tokenParams = isResponsesModel
+    ? { maxOutputTokens: safeMaxTokens }
+    : isReasoning
+      ? { maxCompletionTokens: safeMaxTokens }
+      : { maxTokens: safeMaxTokens };
+
   const streamParams = {
     model: provider.getModelInstance({
       model: modelDetails.name,
@@ -383,7 +404,7 @@ ${customPromptBody}
     ...filteredOptions,
 
     // Set temperature to 1 for reasoning models (required by OpenAI API)
-    ...(isReasoning ? { temperature: 1 } : {}),
+    ...(isReasoning && !isResponsesModel ? { temperature: 1 } : {}),
   };
 
   // DEBUG: Log final streaming parameters
@@ -394,6 +415,7 @@ ${customPromptBody}
         hasTemperature: 'temperature' in streamParams,
         hasMaxTokens: 'maxTokens' in streamParams,
         hasMaxCompletionTokens: 'maxCompletionTokens' in streamParams,
+        hasMaxOutputTokens: 'maxOutputTokens' in streamParams,
         paramKeys: Object.keys(streamParams).filter((key) => !['model', 'messages', 'system'].includes(key)),
         streamParams: Object.fromEntries(
           Object.entries(streamParams).filter(([key]) => !['model', 'messages', 'system'].includes(key)),
