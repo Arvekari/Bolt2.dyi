@@ -19,6 +19,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - MCP service imports were migrated from legacy `ai` subpaths to `@ai-sdk/mcp` and `@ai-sdk/mcp/mcp-stdio` for AI SDK v6 compatibility.
 - CI workflow changelog gate now runs with direct Node script execution in the test job, removing early-step `pnpm` dependency ordering issues.
 - Added mandatory `pre-push` guardrail hook: runs typecheck, changed-file test mapping, SDK regression tests, and starts background GH Actions monitoring.
+- CI test workflow ESLint step now scopes to changed `app/**/*.ts(x)` files between base/head refs and uses staged lint flow, preventing baseline-lint debt from failing unrelated pushes while still enforcing regression linting.
 
 ### Fixed
 
