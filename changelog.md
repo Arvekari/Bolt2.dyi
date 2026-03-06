@@ -24,6 +24,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 - Unit test failures caused by missing `ai/mcp-stdio` export path in AI SDK v6.
 - Outdated stream tool-guard expectation that assumed OpenAI tool-calling must always be disabled.
+- Unit Tests CI regression where `api.llmcall-errors` mock omitted `isOpenAIResponsesModel`, causing incorrect `500` status instead of token-limit `400` path.
 
 ### Verification
 

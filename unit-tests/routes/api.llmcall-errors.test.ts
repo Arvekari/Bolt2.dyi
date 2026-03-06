@@ -16,6 +16,7 @@ const {
 
 vi.mock('~/lib/.server/llm/stream-text', () => ({
   streamText: streamTextMock,
+  isOpenAIResponsesModel: vi.fn((provider: string, model: string) => provider === 'OpenAI' && /codex/i.test(model)),
 }));
 
 vi.mock('ai', () => ({
