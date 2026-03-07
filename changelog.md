@@ -16,10 +16,17 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Ongoing-work verification command (`verify:ongoing-work`) to enforce fresh local execution status fields before commit/push.
 - Docker startup smoke command (`smoke:docker-startup`) now builds an image, starts a container, enforces host log mapping to `bolt.work/docker-test/logs`, rotates logs to a max of 3 files, and verifies startup logs are clean before push.
 - Conditional live AI smoke command (`smoke:ai`) that runs OpenAI endpoint checks when `OPENAI_API_KEY` is available.
+- n8n dev orchestration tooling: `scripts/n8n-dev-orchestrator.mjs`, `scripts/n8n-ongoing-cycle.mjs`, and `scripts/ongoing-work-bridge.mjs` for iterative ongoing-work handoff.
+- n8n live env-gated smoke test (`test:unit:n8n-live`) and n8n guardrail command (`n8n:guardrail`) for operational policy enforcement.
+- Targeted MCP performance/efficiency unit tests in `unit-tests/lib/services/mcpService.test.ts` covering client refresh cleanup, client reuse during availability checks, and no-op handling for non-result tool invocations.
+- Dispatch-loop contract guardrail test (`unit-tests/scripts/n8n-dispatch-contract.test.ts`) to enforce completed-cycle restart impulse fields (`jobPulse` + `restartCommand`).
+- Orchestration stats command (`n8n:stats`) and cycle-level `orchestrationStats` reporting for production execution count, failed production executions, failure rate, average runtime, and estimated time saved.
+- Open-task sync command (`n8n:sync-open-tasks`) that attempts n8n Data Tables integration and falls back to `bolt.work/n8n/open-tasks-table.json` export when Data Tables API is unavailable.
 
 ### Changed
 
 - MCP service imports were migrated from legacy `ai` subpaths to `@ai-sdk/mcp` and `@ai-sdk/mcp/mcp-stdio` for AI SDK v6 compatibility.
+- MCP tool-invocation processing now memoizes `convertToModelMessages` per processed message batch, avoiding repeated conversion work when multiple approved result invocations are present in one assistant message.
 - CI workflow changelog gate now runs with direct Node script execution in the test job, removing early-step `pnpm` dependency ordering issues.
 - Added mandatory `pre-push` guardrail hook: runs typecheck, changed-file test mapping, SDK regression tests, and starts background GH Actions monitoring.
 - GH Actions watcher now supports Docker publication verification and pre-push starts it with `--require-image-publish --image ghcr.io/arvekari/ebolt2` so SHA-tag publication is confirmed after successful workflows.
@@ -28,6 +35,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - MCP tool-stream formatting now uses `@ai-sdk/ui-utils` data-stream helpers instead of removed `ai.formatDataStreamPart` exports.
 - Pre-commit and pre-push hooks now enforce ongoing-work freshness and required status fields.
 - Pre-push guardrail flow now includes Docker startup smoke and conditional live AI smoke before allowing push.
+- n8n operational workflow naming now enforces `Project-bolt2-` prefix, with retired-workflow pruning and local JSON backup exports under `bolt.arva/n8n`.
 
 ### Fixed
 
@@ -35,6 +43,10 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Outdated stream tool-guard expectation that assumed OpenAI tool-calling must always be disabled.
 - Unit Tests CI regression where `api.llmcall-errors` mock omitted `isOpenAIResponsesModel`, causing incorrect `500` status instead of token-limit `400` path.
 - Runtime server startup crash `The requested module 'ai' does not provide an export named 'createDataStream'` after AI SDK v6 upgrade.
+- Live AI smoke `responses` call now uses `max_output_tokens: 16` to satisfy current OpenAI minimum constraint.
+- Docker publish verification closure now explicitly confirms both successful CI workflow completion and published GHCR SHA-tag image for the active commit.
+- n8n orchestration webhook registration gap: managed webhook nodes now include stable `webhookId` values, restoring `/webhook/*` execution recording and end-to-end cycle notifications.
+- `Project-bolt2-ongoing-work-dispatch` loop semantics now emit a restart impulse when a cycle drains (`jobPulse=start-new-ongoing-check-job` + `restartCommand=pnpm run ongoing:cycle -- scan`), enabling automatic follow-up unfinished-work checks as new jobs.
 
 ### Verification
 

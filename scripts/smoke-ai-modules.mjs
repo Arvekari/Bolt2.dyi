@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.OPEN_AI_APIKEY;
 const requestTimeoutMs = Number(process.env.AI_SMOKE_TIMEOUT_MS || 30000);
 
 function withTimeout(signalTimeoutMs) {
@@ -40,7 +40,7 @@ async function callOpenAI(path, body) {
 
 async function run() {
   if (!OPENAI_API_KEY) {
-    console.log('OPENAI_API_KEY not found; skipping live AI smoke checks.');
+    console.log('OPENAI_API_KEY/OPEN_AI_APIKEY not found; skipping live AI smoke checks.');
     process.exit(0);
   }
 
@@ -56,7 +56,7 @@ async function run() {
   await callOpenAI('/responses', {
     model: 'gpt-5.3-codex',
     input: 'Reply with exactly: ok',
-    max_output_tokens: 12,
+    max_output_tokens: 16,
   });
 
   console.log('✅ Live AI smoke checks passed for gpt-4o and gpt-5.3-codex.');

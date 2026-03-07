@@ -50,3 +50,12 @@ docs/instructions/Roadmap.md
 
 # local interruption-safe WIP notes (never commit)
 .ongoing-work.md
+
+# local n8n dev orchestrator state (never commit)
+.n8n-dev-workflows.json
+
+# local n8n -> copilot bridge payloads (never commit)
+bolt.work/n8n/copilot-inbox/
+
+# local n8n ongoing-cycle state (never commit)
+.n8n-ongoing-cycle.json

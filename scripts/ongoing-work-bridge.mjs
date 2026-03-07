@@ -1,0 +1,182 @@
+#!/usr/bin/env node
+
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const FILE_PATH = resolve('.ongoing-work.md');
+
+function parseStatusLine(line) {
+  const match = line.match(/^\s*-\s*`(PARTIAL|TODO|BLOCKED)`\s+(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    status: match[1],
+    text: match[2].trim(),
+  };
+}
+
+function extractObjectives(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const objectives = [];
+  let inPrioritized = false;
+  let currentPriority = '';
+
+  for (const line of lines) {
+    if (line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = true;
+      currentPriority = '';
+      continue;
+    }
+
+    if (inPrioritized && line.startsWith('## ') && !line.startsWith('## Prioritized Unfinished Work')) {
+      break;
+    }
+
+    if (!inPrioritized) {
+      continue;
+    }
+
+    const priorityMatch = line.match(/^###\s+(P\d+)/);
+
+    if (priorityMatch) {
+      currentPriority = priorityMatch[1];
+      continue;
+    }
+
+    const parsed = parseStatusLine(line);
+
+    if (!parsed) {
+      continue;
+    }
+
+    objectives.push({
+      priority: currentPriority || 'UNSPECIFIED',
+      status: parsed.status,
+      text: parsed.text,
+    });
+  }
+
+  return objectives;
+}
+
+function selectNextObjective(objectives) {
+  const preferred = objectives.find((item) => item.status === 'PARTIAL') || objectives.find((item) => item.status === 'TODO');
+  return preferred || null;
+}
+
+function toCopilotPrompt(next, objectives) {
+  if (!next) {
+    return 'No PARTIAL/TODO objective found in .ongoing-work.md.';
+  }
+
+  const shortlist = objectives
+    .filter((item) => item.status === 'PARTIAL' || item.status === 'TODO')
+    .slice(0, 4)
+    .map((item, index) => `${index + 1}. [${item.priority}] ${item.status} ${item.text}`)
+    .join('\n');
+
+  return [
+    'Continue execution from .ongoing-work.md using this next objective:',
+    `[${next.priority}] ${next.status} ${next.text}`,
+    '',
+    'Top open objectives:',
+    shortlist,
+    '',
+    'Update .ongoing-work.md before and after actions; move completed items to changelog.md.',
+  ].join('\n');
+}
+
+function emitPayloadFiles(next, objectives) {
+  const outDir = resolve('bolt.work/n8n/copilot-inbox');
+  const timestamp = new Date().toISOString();
+  const prompt = toCopilotPrompt(next, objectives);
+
+  const payload = {
+    generatedAt: timestamp,
+    source: FILE_PATH,
+    next,
+    objectives,
+    prompt,
+  };
+
+  mkdirSync(outDir, { recursive: true });
+
+  const jsonPath = resolve(outDir, 'latest.json');
+  const promptPath = resolve(outDir, 'latest-prompt.md');
+
+  writeFileSync(jsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  writeFileSync(promptPath, `${prompt}\n`, 'utf8');
+
+  return {
+    jsonPath,
+    promptPath,
+    generatedAt: timestamp,
+  };
+}
+
+function main() {
+  const command = process.argv[2] || 'json';
+  const markdown = readFileSync(FILE_PATH, 'utf8');
+  const objectives = extractObjectives(markdown);
+  const next = selectNextObjective(objectives);
+
+  if (command === 'next') {
+    if (!next) {
+      console.log('NONE');
+      return;
+    }
+
+    console.log(`[${next.priority}] ${next.status} ${next.text}`);
+    return;
+  }
+
+  if (command === 'prompt') {
+    console.log(toCopilotPrompt(next, objectives));
+    return;
+  }
+
+  if (command === 'json') {
+    console.log(
+      JSON.stringify(
+        {
+          source: FILE_PATH,
+          next,
+          objectives,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  if (command === 'emit') {
+    const emitted = emitPayloadFiles(next, objectives);
+
+    console.log(
+      JSON.stringify(
+        {
+          source: FILE_PATH,
+          next,
+          emitted,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  throw new Error(`Unsupported command: ${command}`);
+}
+
+try {
+  main();
+} catch (error) {
+  const details = error instanceof Error ? error.message : String(error);
+  console.error(`ongoing-work-bridge error: ${details}`);
+  process.exit(1);
+}

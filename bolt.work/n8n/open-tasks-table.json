@@ -1,0 +1,36 @@
+{
+  "tableName": "Project-bolt2-open-tasks",
+  "generatedAt": "2026-03-07T10:22:38.059Z",
+  "rows": [
+    {
+      "taskKey": "P2-1",
+      "priority": "P2",
+      "status": "TODO",
+      "objective": "UI modernzation we want to make it more smooth like for example lovable or readdy is at the moment of mid march 2026",
+      "updatedAt": "2026-03-07T10:22:37.943Z"
+    },
+    {
+      "taskKey": "P2-2",
+      "priority": "P2",
+      "status": "TODO",
+      "objective": "Bolt2.dyi needs to be able also to create backend logic and fuctions with perl fastapi or what so ever but it needs to be more of a full stack easy to use development tool like lovable",
+      "updatedAt": "2026-03-07T10:22:37.943Z"
+    }
+  ],
+  "stats": {
+    "measuredAt": "2026-03-07T10:22:38.058Z",
+    "sampledExecutions": 13,
+    "managedWorkflowIds": [
+      "FaDMNrIq330kFYpD",
+      "nMxu113Luf2eL5v8"
+    ],
+    "managedExecutions": 13,
+    "productionExecutions": 13,
+    "failedProductionExecutions": 0,
+    "failureRatePercent": 0,
+    "averageRuntimeMs": 25,
+    "estimatedTimeSavedMinutes": 78,
+    "manualMinutesPerRun": 6,
+    "openObjectivesCount": 2
+  }
+}

@@ -119,7 +119,7 @@ function resolveImageTag(args, sha) {
 }
 
 async function fetchRuns(repo, sha) {
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env['bolt2.dyi_GitHub_token'];
   const headers = {
     'User-Agent': 'bolt2-dyi-gh-watcher',
     Accept: 'application/vnd.github+json',
@@ -188,7 +188,7 @@ async function watch(args) {
 
   const repo = args.repo || getRepoFromOrigin();
   const sha = resolveSha(args.sha);
-  const hasToken = Boolean(process.env.GITHUB_TOKEN || process.env.GH_TOKEN);
+  const hasToken = Boolean(process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env['bolt2.dyi_GitHub_token']);
 
   log.info(`Watching GitHub Actions for repo=${repo} sha=${sha}`);
   log.info(`GitHub API auth token present: ${hasToken ? 'yes' : 'no (using anonymous API limits)'}`);

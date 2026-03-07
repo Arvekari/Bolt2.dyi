@@ -373,6 +373,7 @@ export class MCPService {
   async processToolInvocations(messages: Message[], dataStream: DataStreamWriter): Promise<Message[]> {
     const lastMessage = messages[messages.length - 1];
     const parts = lastMessage.parts;
+    let modelMessagesPromise: Promise<Awaited<ReturnType<typeof convertToModelMessages>>> | undefined;
 
     if (!parts) {
       return messages;
@@ -402,7 +403,8 @@ export class MCPService {
             logger.debug(`calling tool "${toolName}" with args: ${JSON.stringify(toolInvocation.args)}`);
 
             try {
-              const modelMessages = await convertToModelMessages(messages as any);
+              modelMessagesPromise ??= convertToModelMessages(messages as any);
+              const modelMessages = await modelMessagesPromise;
               result = await (toolInstance.execute as any)(toolInvocation.args as any, {
                 messages: modelMessages,
                 toolCallId,
