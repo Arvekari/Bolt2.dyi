@@ -13,6 +13,9 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Internal AI SDK MCP compatibility regression unit test to catch missing MCP exports/subpaths before commit/push.
 - Push-phase SDK regression command (`test:unit:sdk-regressions`) for repeatable pre-push validation.
 - GitHub Actions watcher script to monitor workflow outcomes for pushed SHA (`scripts/watch-gh-actions.mjs`).
+- Ongoing-work verification command (`verify:ongoing-work`) to enforce fresh local execution status fields before commit/push.
+- Docker in the docker smoke test you also needd to see all logs created by the app that they are clean of errors startup smoke command (`smoke:docker-startup`) to build and verify startup health before push.
+- Conditional live AI smoke command (`smoke:ai`) that runs OpenAI endpoint checks when `OPENAI_API_KEY` is available.
 
 ### Changed
 
@@ -22,6 +25,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - CI test workflow ESLint step now scopes to changed `app/**/*.ts(x)` files between base/head refs and uses staged lint flow, preventing baseline-lint debt from failing unrelated pushes while still enforcing regression linting.
 - Chat streaming now uses an internal AI SDK v6 compatibility data-stream adapter (`app/lib/.server/llm/data-stream.ts`) instead of removed `ai.createDataStream`/`mergeIntoDataStream` APIs.
 - MCP tool-stream formatting now uses `@ai-sdk/ui-utils` data-stream helpers instead of removed `ai.formatDataStreamPart` exports.
+- Pre-commit and pre-push hooks now enforce ongoing-work freshness and required status fields.
+- Pre-push guardrail flow now includes Docker startup smoke and conditional live AI smoke before allowing push.
 
 ### Fixed
 
