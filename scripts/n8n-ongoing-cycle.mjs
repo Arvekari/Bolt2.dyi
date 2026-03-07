@@ -10,6 +10,7 @@ const LOOP_LOG = resolve('bolt.work/n8n/copilot-inbox/cycle.log');
 const ORCHESTRATOR_STATE = resolve('.n8n-dev-workflows.json');
 const ORCHESTRATION_STATS_FILE = resolve('bolt.work/n8n/orchestration-stats.latest.json');
 const OPEN_TASKS_FALLBACK_FILE = resolve('bolt.work/n8n/open-tasks-table.json');
+const TASK_STATUS_TABLE_MAX_ROWS = 100;
 
 function readMarkdown() {
   return readFileSync(FILE_PATH, 'utf8');
@@ -128,6 +129,138 @@ function loadState() {
 
 function saveState(state) {
   writeFileSync(LOOP_STATE, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+}
+
+function toSlotKey(index) {
+  return `slot-${String(index).padStart(3, '0')}`;
+}
+
+function sanitizeRefPart(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 72);
+}
+
+function loadCompletedEntries() {
+  const state = loadState();
+  return Array.isArray(state.completed) ? state.completed : [];
+}
+
+function buildTaskStatusTableRows(objectives, measuredAt) {
+  const activeRows = objectives
+    .filter((item) => item.status === 'PARTIAL' || item.status === 'TODO')
+    .map((item, index) => ({
+      taskRef: `active-${sanitizeRefPart(item.priority)}-${index + 1}-${sanitizeRefPart(item.text)}`,
+      priority: item.priority,
+      status: item.status,
+      objective: item.text,
+      isActive: true,
+      rowType: 'active',
+      completedAt: '',
+      updatedAt: measuredAt,
+    }));
+
+  const completedRows = loadCompletedEntries()
+    .slice()
+    .sort((a, b) => {
+      const aTime = Date.parse(a?.completedAt || '') || 0;
+      const bTime = Date.parse(b?.completedAt || '') || 0;
+      return bTime - aTime;
+    })
+    .map((item, index) => ({
+      taskRef: `completed-${index + 1}-${sanitizeRefPart(item?.text || '')}`,
+      priority: 'P0',
+      status: 'COMPLETED',
+      objective: String(item?.text || '').trim(),
+      isActive: false,
+      rowType: 'completed',
+      completedAt: item?.completedAt || measuredAt,
+      updatedAt: measuredAt,
+    }));
+
+  const selected = [...activeRows, ...completedRows].slice(0, TASK_STATUS_TABLE_MAX_ROWS);
+  const padded = [];
+
+  for (let index = 0; index < TASK_STATUS_TABLE_MAX_ROWS; index++) {
+    const source = selected[index];
+
+    if (source) {
+      padded.push({
+        taskKey: toSlotKey(index + 1),
+        slotIndex: index + 1,
+        ...source,
+      });
+      continue;
+    }
+
+    padded.push({
+      taskKey: toSlotKey(index + 1),
+      slotIndex: index + 1,
+      taskRef: '',
+      priority: '',
+      status: 'EMPTY',
+      objective: '',
+      isActive: false,
+      rowType: 'placeholder',
+      completedAt: '',
+      updatedAt: measuredAt,
+    });
+  }
+
+  return padded;
+}
+
+function buildCheckupTable(eventType, nextObjectiveItem, measuredAt) {
+  const checkupId = `checkup-${Date.now()}`;
+  const linkedTaskRef = nextObjectiveItem
+    ? `active-${sanitizeRefPart(nextObjectiveItem.priority)}-${sanitizeRefPart(nextObjectiveItem.text)}`
+    : 'queue-empty';
+
+  return [
+    {
+      checkupId,
+      linkedTaskRef,
+      eventType,
+      status: 'STARTED',
+      updatedAt: measuredAt,
+    },
+  ];
+}
+
+function buildFailureTable(checkupTable, orchestrationStats, measuredAt) {
+  const checkupId = checkupTable[0]?.checkupId || `checkup-${Date.now()}`;
+
+  if (orchestrationStats?.available === false) {
+    return [
+      {
+        failureId: `failure-${checkupId}`,
+        checkupId,
+        linkedTaskRef: checkupTable[0]?.linkedTaskRef || 'unknown',
+        source: 'orchestration-stats',
+        failureReason: orchestrationStats.reason || 'stats unavailable',
+        detail: orchestrationStats.detail || '',
+        updatedAt: measuredAt,
+      },
+    ];
+  }
+
+  if ((orchestrationStats?.failedProductionExecutions || 0) > 0) {
+    return [
+      {
+        failureId: `failure-${checkupId}`,
+        checkupId,
+        linkedTaskRef: checkupTable[0]?.linkedTaskRef || 'unknown',
+        source: 'execution-failures',
+        failureReason: `failedProductionExecutions=${orchestrationStats.failedProductionExecutions}`,
+        detail: '',
+        updatedAt: measuredAt,
+      },
+    ];
+  }
+
+  return [];
 }
 
 function logLine(message) {
@@ -595,17 +728,30 @@ async function commandNext() {
   const next = nextObjective(objectives);
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
+  const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = objectives.filter((item) => item.status === 'PARTIAL' || item.status === 'TODO').map((item, idx) => ({
     taskKey: `${item.priority}-${idx + 1}`,
     priority: item.priority,
     status: item.status,
     objective: item.text,
-    updatedAt: orchestrationStats.measuredAt,
+    updatedAt: measuredAt,
   }));
+  const taskStatusTable = buildTaskStatusTableRows(objectives, measuredAt);
+  const checkupTable = buildCheckupTable('objective.next', next, measuredAt);
+  const failureTable = buildFailureTable(checkupTable, orchestrationStats, measuredAt);
   validateStatsPayload(orchestrationStats);
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
-  const notify = await notifyN8n('objective.next', { next, openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  const notify = await notifyN8n('objective.next', {
+    next,
+    openCount: objectives.length,
+    emitted,
+    openTasksTable,
+    orchestrationStats,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
+  });
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify);
 
@@ -618,6 +764,9 @@ async function commandNext() {
     request,
     orchestrationStats,
     openTasksTable,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
     orchestrationPolicy: policy,
     ...openTasksPersisted,
   });
@@ -643,17 +792,31 @@ async function commandDone(args) {
   const next = nextObjective(objectives);
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
+  const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = objectives.filter((item) => item.status === 'PARTIAL' || item.status === 'TODO').map((item, idx) => ({
     taskKey: `${item.priority}-${idx + 1}`,
     priority: item.priority,
     status: item.status,
     objective: item.text,
-    updatedAt: orchestrationStats.measuredAt,
+    updatedAt: measuredAt,
   }));
+  const taskStatusTable = buildTaskStatusTableRows(objectives, measuredAt);
+  const checkupTable = buildCheckupTable('objective.done', next, measuredAt);
+  const failureTable = buildFailureTable(checkupTable, orchestrationStats, measuredAt);
   validateStatsPayload(orchestrationStats);
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
-  const notify = await notifyN8n('objective.done', { done: text, next, openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  const notify = await notifyN8n('objective.done', {
+    done: text,
+    next,
+    openCount: objectives.length,
+    emitted,
+    openTasksTable,
+    orchestrationStats,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
+  });
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify);
 
@@ -668,6 +831,9 @@ async function commandDone(args) {
     request,
     orchestrationStats,
     openTasksTable,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
     orchestrationPolicy: policy,
     ...openTasksPersisted,
   });
@@ -679,17 +845,29 @@ async function commandLoop() {
   const objectives = parseObjectives(markdown).filter((item) => item.status === 'PARTIAL' || item.status === 'TODO');
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
+  const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = objectives.map((item, idx) => ({
     taskKey: `${item.priority}-${idx + 1}`,
     priority: item.priority,
     status: item.status,
     objective: item.text,
-    updatedAt: orchestrationStats.measuredAt,
+    updatedAt: measuredAt,
   }));
+  const taskStatusTable = buildTaskStatusTableRows(objectives, measuredAt);
+  const checkupTable = buildCheckupTable('objective.scan', nextObjective(objectives), measuredAt);
+  const failureTable = buildFailureTable(checkupTable, orchestrationStats, measuredAt);
   validateStatsPayload(orchestrationStats);
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
-  const notify = await notifyN8n('objective.scan', { openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  const notify = await notifyN8n('objective.scan', {
+    openCount: objectives.length,
+    emitted,
+    openTasksTable,
+    orchestrationStats,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
+  });
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(nextObjective(objectives), notify);
 
@@ -702,6 +880,9 @@ async function commandLoop() {
     request,
     orchestrationStats,
     openTasksTable,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
     orchestrationPolicy: policy,
     ...openTasksPersisted,
   });

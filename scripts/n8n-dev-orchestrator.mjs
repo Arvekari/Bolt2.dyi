@@ -45,9 +45,9 @@ const WORKFLOWS = [
           typeVersion: 1,
           position: [620, 260],
           parameters: {
-            keepOnlySet: true,
+            keepOnlySet: false,
             values: {
-              json: [
+              string: [
                 {
                   name: 'status',
                   value: 'accepted',
@@ -67,9 +67,9 @@ const WORKFLOWS = [
                     "={{ (((($json.payload || {}).openCount ?? (($json.body || {}).payload || {}).openCount) === 0) ? 'empty' : 'open') }}",
                 },
                 {
-                  name: 'commands',
+                  name: 'commandsJson',
                   value:
-                    "={{ (((($json.payload || {}).openCount ?? (($json.body || {}).payload || {}).openCount) === 0) ? [{ type: 'cycle.restart', command: 'pnpm run ongoing:cycle -- scan' }] : [{ type: 'objective.executeNext' }] ) }}",
+                    "={{ JSON.stringify((((($json.payload || {}).openCount ?? (($json.body || {}).payload || {}).openCount) === 0) ? [{ type: 'cycle.restart', command: 'pnpm run ongoing:cycle -- scan' }] : [{ type: 'objective.executeNext' }])) }}",
                 },
               ],
             },
@@ -84,7 +84,7 @@ const WORKFLOWS = [
           parameters: {
             operation: 'upsert',
             table: 'Project-bolt2-open-tasks',
-            data: '={{ $json.payload.openTasksTable || $json.body.payload.openTasksTable }}',
+            data: '={{ $json.payload.taskStatusTable || $json.body.payload.taskStatusTable || $json.payload.openTasksTable || $json.body.payload.openTasksTable }}',
             key: 'taskKey',
           },
         },

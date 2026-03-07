@@ -44,6 +44,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Ongoing cycle runtime now validates response/table payload structures and always persists both `bolt.work/n8n/orchestration-stats.latest.json` and `bolt.work/n8n/open-tasks-table.json` on `next`, `done`, and `scan` commands.
 - Ongoing cycle now enforces orchestration delivery whenever managed workflows are defined; non-orchestrated cycle commands fail unless an explicit `## Orchestration Enforcement` exception is set in `.ongoing-work.md`.
 - Docker startup smoke now exports the locally built smoke image archive to the workspace `composed` directory (`../composed/<image-tag>.tar`) before runtime container validation.
+- Ongoing cycle payload now includes a bounded 100-row `taskStatusTable` (active + completed + placeholder rows), separate `openTasksTable` active-task projection, and linked `checkupTable` / `failureTable` metadata for background monitoring correlation.
+- n8n managed ongoing-work workflow now upserts from `taskStatusTable` first (fallback to `openTasksTable`) so status monitoring uses one Data Table feed with active filtering support (`isActive`).
 
 ### Fixed
 
