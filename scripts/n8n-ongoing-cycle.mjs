@@ -59,6 +59,58 @@ function parseObjectives(markdown) {
   return objectives;
 }
 
+function readOrchestrationPolicy(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  let inSection = false;
+  let mode = 'REQUIRED';
+  let exception = 'OFF';
+  let reason = '';
+
+  for (const line of lines) {
+    if (line.startsWith('## Orchestration Enforcement')) {
+      inSection = true;
+      continue;
+    }
+
+    if (inSection && line.startsWith('## ') && !line.startsWith('## Orchestration Enforcement')) {
+      break;
+    }
+
+    if (!inSection) {
+      continue;
+    }
+
+    const modeMatch = line.match(/^\s*-\s*Mode:\s*(REQUIRED|EXCEPTION)\s*$/i);
+
+    if (modeMatch) {
+      mode = modeMatch[1].toUpperCase();
+      continue;
+    }
+
+    const exceptionMatch = line.match(/^\s*-\s*Exception:\s*(ON|OFF)\s*$/i);
+
+    if (exceptionMatch) {
+      exception = exceptionMatch[1].toUpperCase();
+      continue;
+    }
+
+    const reasonMatch = line.match(/^\s*-\s*ExceptionReason:\s*(.*)$/i);
+
+    if (reasonMatch) {
+      reason = reasonMatch[1].trim();
+    }
+  }
+
+  const exceptionEnabled = mode === 'EXCEPTION' || exception === 'ON';
+
+  return {
+    mode,
+    exception: exceptionEnabled ? 'ON' : 'OFF',
+    exceptionEnabled,
+    exceptionReason: reason,
+  };
+}
+
 function nextObjective(objectives) {
   return objectives.find((item) => item.status === 'PARTIAL') || objectives.find((item) => item.status === 'TODO') || null;
 }
@@ -171,6 +223,54 @@ function loadManagedWorkflowIds() {
       .filter(Boolean);
   } catch {
     return [];
+  }
+}
+
+function hasDefinedOrchestrationLayer() {
+  if (!existsSync(ORCHESTRATOR_STATE)) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(ORCHESTRATOR_STATE, 'utf8'));
+    const workflows = parsed && typeof parsed === 'object' ? parsed.workflows : null;
+
+    if (!workflows || typeof workflows !== 'object') {
+      return false;
+    }
+
+    const entries = Object.values(workflows).filter((item) => item && typeof item === 'object');
+
+    if (entries.length === 0) {
+      return false;
+    }
+
+    return entries.some((item) => String(item?.id || '').trim().length > 0 && item?.active !== false);
+  } catch {
+    return false;
+  }
+}
+
+function enforceOrchestrationDelivery(notifyResult, policy) {
+  const orchestrationDefined = hasDefinedOrchestrationLayer();
+
+  if (!orchestrationDefined) {
+    return;
+  }
+
+  if (policy.exceptionEnabled) {
+    logLine(
+      `orchestration exception active; bypassing strict delivery check. reason=${policy.exceptionReason || 'not provided'}`,
+    );
+    return;
+  }
+
+  if (!notifyResult?.sent) {
+    const reason = notifyResult?.reason || 'unknown-notify-error';
+    throw new Error(
+      `Orchestration layer is defined and required, but notify failed (${reason}). ` +
+        `Fix orchestration delivery or set explicit exception in .ongoing-work.md under '## Orchestration Enforcement' before continuing.`,
+    );
   }
 }
 
@@ -489,7 +589,9 @@ function printJson(data) {
 }
 
 async function commandNext() {
-  const objectives = parseObjectives(readMarkdown()).filter((item) => item.status !== 'BLOCKED');
+  const markdown = readMarkdown();
+  const policy = readOrchestrationPolicy(markdown);
+  const objectives = parseObjectives(markdown).filter((item) => item.status !== 'BLOCKED');
   const next = nextObjective(objectives);
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
@@ -504,6 +606,7 @@ async function commandNext() {
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
   const notify = await notifyN8n('objective.next', { next, openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify);
 
   printJson({
@@ -515,6 +618,7 @@ async function commandNext() {
     request,
     orchestrationStats,
     openTasksTable,
+    orchestrationPolicy: policy,
     ...openTasksPersisted,
   });
 }
@@ -533,7 +637,9 @@ async function commandDone(args) {
   });
   saveState(state);
 
-  const objectives = parseObjectives(readMarkdown()).filter((item) => item.status !== 'BLOCKED');
+  const markdown = readMarkdown();
+  const policy = readOrchestrationPolicy(markdown);
+  const objectives = parseObjectives(markdown).filter((item) => item.status !== 'BLOCKED');
   const next = nextObjective(objectives);
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
@@ -548,6 +654,7 @@ async function commandDone(args) {
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
   const notify = await notifyN8n('objective.done', { done: text, next, openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify);
 
   printJson({
@@ -561,12 +668,15 @@ async function commandDone(args) {
     request,
     orchestrationStats,
     openTasksTable,
+    orchestrationPolicy: policy,
     ...openTasksPersisted,
   });
 }
 
 async function commandLoop() {
-  const objectives = parseObjectives(readMarkdown()).filter((item) => item.status === 'PARTIAL' || item.status === 'TODO');
+  const markdown = readMarkdown();
+  const policy = readOrchestrationPolicy(markdown);
+  const objectives = parseObjectives(markdown).filter((item) => item.status === 'PARTIAL' || item.status === 'TODO');
   const emitted = bridgeEmit();
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
   const openTasksTable = objectives.map((item, idx) => ({
@@ -580,6 +690,7 @@ async function commandLoop() {
   validateOpenTaskRows(openTasksTable);
   const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
   const notify = await notifyN8n('objective.scan', { openCount: objectives.length, emitted, openTasksTable, orchestrationStats });
+  enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(nextObjective(objectives), notify);
 
   printJson({
@@ -591,6 +702,7 @@ async function commandLoop() {
     request,
     orchestrationStats,
     openTasksTable,
+    orchestrationPolicy: policy,
     ...openTasksPersisted,
   });
 }
