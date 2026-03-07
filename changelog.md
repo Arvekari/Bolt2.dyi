@@ -23,6 +23,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Dispatch-loop contract guardrail test (`unit-tests/scripts/n8n-dispatch-contract.test.ts`) to enforce completed-cycle restart impulse fields (`jobPulse` + `restartCommand`).
 - Orchestration stats command (`n8n:stats`) and cycle-level `orchestrationStats` reporting for production execution count, failed production executions, failure rate, average runtime, and estimated time saved.
 - Open-task sync command (`n8n:sync-open-tasks`) that attempts n8n Data Tables integration and falls back to `bolt.work/n8n/open-tasks-table.json` export when Data Tables API is unavailable.
+- Detached GH Actions watcher final-status artifact (`.git/gh-watch-<sha>.status.json`) with strict terminal state tracking (`success` or `fail`) for pushed commits.
 
 ### Changed
 
@@ -37,6 +38,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Pre-commit and pre-push hooks now enforce ongoing-work freshness and required status fields.
 - Pre-push guardrail flow now includes Docker startup smoke and conditional live AI smoke before allowing push.
 - n8n operational workflow naming now enforces `Project-bolt2-` prefix, with retired-workflow pruning and local JSON backup exports under `bolt.arva/n8n`.
+- Pre-push Docker publish monitoring now always runs as a background watcher and tracks only final success/fail state via status JSON output.
 
 ### Fixed
 
@@ -48,6 +50,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Docker publish verification closure now explicitly confirms both successful CI workflow completion and published GHCR SHA-tag image for the active commit.
 - n8n orchestration webhook registration gap: managed webhook nodes now include stable `webhookId` values, restoring `/webhook/*` execution recording and end-to-end cycle notifications.
 - `Project-bolt2-ongoing-work-dispatch` loop semantics now emit a restart impulse when a cycle drains (`jobPulse=start-new-ongoing-check-job` + `restartCommand=pnpm run ongoing:cycle -- scan`), enabling automatic follow-up unfinished-work checks as new jobs.
+- Docker publish failure handling now auto-triggers GitHub Actions `rerun-failed-jobs` recovery when a failure is detected and a GitHub token is available.
 
 ### Verification
 

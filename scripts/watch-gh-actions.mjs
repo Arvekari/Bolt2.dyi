@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { execSync } from 'node:child_process';
@@ -17,6 +17,8 @@ function parseArgs(argv) {
     requireImagePublish: false,
     image: 'ghcr.io/arvekari/ebolt2',
     imageTag: '',
+    statusFile: '',
+    autoFixOnFail: false,
   };
 
   for (let i = 0; i < argv.length; i++) {
@@ -40,6 +42,12 @@ function parseArgs(argv) {
       args.image = argv[++i];
     } else if (arg === '--image-tag' && argv[i + 1]) {
       args.imageTag = argv[++i];
+    } else if (arg === '--status-file' && argv[i + 1]) {
+      args.statusFile = argv[++i];
+    } else if (arg === '--auto-fix-on-fail') {
+      args.autoFixOnFail = true;
+    } else if (arg === '--no-auto-fix-on-fail') {
+      args.autoFixOnFail = false;
     }
   }
 
@@ -118,8 +126,25 @@ function resolveImageTag(args, sha) {
   return `sha-${sha.slice(0, 7)}`;
 }
 
+function resolveStatusFile(args, sha) {
+  if (args.statusFile) {
+    return args.statusFile;
+  }
+
+  return resolve('.git', `gh-watch-${sha}.status.json`);
+}
+
+function writeFinalStatus(statusFile, payload) {
+  mkdirSync(dirname(statusFile), { recursive: true });
+  writeFileSync(statusFile, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+}
+
+function getGitHubToken() {
+  return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env['bolt2.dyi_GitHub_token'] || '';
+}
+
 async function fetchRuns(repo, sha) {
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env['bolt2.dyi_GitHub_token'];
+  const token = getGitHubToken();
   const headers = {
     'User-Agent': 'bolt2-dyi-gh-watcher',
     Accept: 'application/vnd.github+json',
@@ -148,10 +173,44 @@ function summarizeFailures(runs) {
   return runs
     .filter((runItem) => runItem.status === 'completed' && !['success', 'skipped'].includes(runItem.conclusion || ''))
     .map((runItem) => ({
+      id: runItem.id,
       name: runItem.name,
       conclusion: runItem.conclusion,
       url: runItem.html_url,
     }));
+}
+
+async function triggerAutoFix(repo, failures, log) {
+  const token = getGitHubToken();
+
+  if (!token) {
+    log.error('Auto-fix skipped: missing GitHub token for rerun API call.');
+    return;
+  }
+
+  for (const failure of failures) {
+    try {
+      const response = await fetch(`https://api.github.com/repos/${repo}/actions/runs/${failure.id}/rerun-failed-jobs`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'bolt2-dyi-gh-watcher',
+          Accept: 'application/vnd.github+json',
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        log.error(`Auto-fix rerun failed for ${failure.name}: ${response.status} ${text}`);
+        continue;
+      }
+
+      log.info(`Auto-fix triggered: rerun failed jobs for ${failure.name}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error(`Auto-fix error for ${failure.name}: ${message}`);
+    }
+  }
 }
 
 function imageExists(imageRef) {
@@ -188,7 +247,8 @@ async function watch(args) {
 
   const repo = args.repo || getRepoFromOrigin();
   const sha = resolveSha(args.sha);
-  const hasToken = Boolean(process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env['bolt2.dyi_GitHub_token']);
+  const hasToken = Boolean(getGitHubToken());
+  const statusFile = resolveStatusFile(args, sha);
 
   log.info(`Watching GitHub Actions for repo=${repo} sha=${sha}`);
   log.info(`GitHub API auth token present: ${hasToken ? 'yes' : 'no (using anonymous API limits)'}`);
@@ -223,6 +283,19 @@ async function watch(args) {
 
     if (failures.length > 0) {
       failures.forEach((failure) => log.error(`Failure: ${failure.name} (${failure.conclusion}) ${failure.url}`));
+
+      if (args.autoFixOnFail) {
+        await triggerAutoFix(repo, failures, log);
+      }
+
+      writeFinalStatus(statusFile, {
+        status: 'fail',
+        repo,
+        sha,
+        observedAt: nowIso(),
+        failures,
+        autoFixOnFail: args.autoFixOnFail,
+      });
       process.exit(1);
     }
 
@@ -232,6 +305,16 @@ async function watch(args) {
       await waitForPublishedImage(args, sha, log);
     }
 
+    writeFinalStatus(statusFile, {
+      status: 'success',
+      repo,
+      sha,
+      observedAt: nowIso(),
+      requireImagePublish: args.requireImagePublish,
+      image: args.image,
+      imageTag: resolveImageTag(args, sha),
+    });
+
     process.exit(0);
   }
 
@@ -240,6 +323,15 @@ async function watch(args) {
   } else {
     log.error('Timed out waiting for workflows to complete.');
   }
+
+  writeFinalStatus(statusFile, {
+    status: 'fail',
+    repo,
+    sha,
+    observedAt: nowIso(),
+    reason: observedRun ? 'workflow-timeout' : 'workflow-not-found-timeout',
+    autoFixOnFail: args.autoFixOnFail,
+  });
 
   process.exit(1);
 }
@@ -251,6 +343,13 @@ async function watch(args) {
   if (args.detach) {
     const forwardArgs = process.argv.slice(2).filter((arg) => arg !== '--detach');
     const detachedLog = args.logFile || resolve('.git/gh-watch.log');
+    const detachedSha = resolveSha(args.sha);
+    const detachedStatusFile = resolveStatusFile(args, detachedSha);
+    const hasStatusFileArg = forwardArgs.includes('--status-file');
+
+    if (!hasStatusFileArg) {
+      forwardArgs.push('--status-file', detachedStatusFile);
+    }
 
     const child = spawn(process.execPath, [scriptPath, ...forwardArgs, '--log-file', detachedLog], {
       detached: true,
@@ -258,7 +357,7 @@ async function watch(args) {
     });
 
     child.unref();
-    console.log(`Started detached GitHub Actions watcher. Log: ${detachedLog}`);
+    console.log(`Started detached GitHub Actions watcher. Log: ${detachedLog} Status: ${detachedStatusFile}`);
     process.exit(0);
   }
 
