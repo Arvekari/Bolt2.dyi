@@ -210,7 +210,7 @@ export default function GitLabConnection({ connectionTest, onTestConnection }: G
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       onClick={() =>
                         window.open(
                           `${connection?.gitlabUrl || 'https://gitlab.com'}/dashboard`,
@@ -226,7 +226,7 @@ export default function GitLabConnection({ connectionTest, onTestConnection }: G
                     <Button
                       onClick={onTestConnection}
                       disabled={connectionTest?.status === 'testing'}
-                      variant="outline"
+                      variant="secondary"
                       className="flex items-center gap-2 hover:bg-bolt-elements-item-backgroundActive/10 hover:text-bolt-elements-textPrimary dark:hover:text-bolt-elements-textPrimary transition-colors"
                     >
                       {connectionTest?.status === 'testing' ? (

@@ -92,7 +92,7 @@ function GitHubStatsContent({
                   refreshStats();
                 }}
                 disabled={isRefreshing}
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="text-xs"
               >

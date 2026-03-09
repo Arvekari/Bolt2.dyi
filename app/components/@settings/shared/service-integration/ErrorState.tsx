@@ -56,7 +56,7 @@ export function ErrorState({
             {onRetry && (
               <Button
                 onClick={onRetry}
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="text-red-700 border-red-300 hover:bg-red-100 dark:text-red-300 dark:border-red-600 dark:hover:bg-red-900/30"
               >
@@ -67,7 +67,7 @@ export function ErrorState({
             {onDismiss && (
               <Button
                 onClick={onDismiss}
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="text-red-700 border-red-300 hover:bg-red-100 dark:text-red-300 dark:border-red-600 dark:hover:bg-red-900/30"
               >

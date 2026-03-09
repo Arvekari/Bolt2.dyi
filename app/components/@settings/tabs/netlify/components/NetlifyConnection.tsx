@@ -5,20 +5,20 @@ import { useStore } from '@nanostores/react';
 import { netlifyConnection, updateNetlifyConnection, initializeNetlifyConnection } from '~/lib/stores/netlify';
 import type { NetlifySite, NetlifyDeploy, NetlifyBuild, NetlifyUser } from '~/types/netlify';
 import {
-  CloudIcon,
-  BuildingLibraryIcon,
-  ClockIcon,
-  CodeBracketIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  TrashIcon,
-  ArrowPathIcon,
-  LockClosedIcon,
-  LockOpenIcon,
-  RocketLaunchIcon,
-  ChartBarIcon,
-  CogIcon,
-} from '@heroicons/react/24/outline';
+  Cloud as CloudIcon,
+  Building2 as BuildingLibraryIcon,
+  Clock3 as ClockIcon,
+  Code2 as CodeBracketIcon,
+  CircleCheck as CheckCircleIcon,
+  CircleX as XCircleIcon,
+  Trash2 as TrashIcon,
+  RefreshCw as ArrowPathIcon,
+  Lock as LockClosedIcon,
+  LockOpen as LockOpenIcon,
+  Rocket as RocketLaunchIcon,
+  BarChart3 as ChartBarIcon,
+  Settings as CogIcon,
+} from 'lucide-react';
 import { Button } from '~/components/ui/Button';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '~/components/ui/Collapsible';
 import { formatDistanceToNow } from 'date-fns';
@@ -560,14 +560,14 @@ export default function NetlifyConnection() {
             <div className="space-y-4 mt-4">
               <div className="flex flex-wrap items-center gap-4">
                 <Badge
-                  variant="outline"
+                  variant="secondary"
                   className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                 >
                   <BuildingLibraryIcon className="h-4 w-4 text-bolt-elements-item-contentAccent" />
                   <span>{connection.stats.totalSites} Sites</span>
                 </Badge>
                 <Badge
-                  variant="outline"
+                  variant="secondary"
                   className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                 >
                   <RocketLaunchIcon className="h-4 w-4 text-bolt-elements-item-contentAccent" />
@@ -575,7 +575,7 @@ export default function NetlifyConnection() {
                 </Badge>
                 {lastUpdated && (
                   <Badge
-                    variant="outline"
+                    variant="secondary"
                     className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                   >
                     <ClockIcon className="h-4 w-4 text-bolt-elements-item-contentAccent" />
@@ -592,7 +592,7 @@ export default function NetlifyConnection() {
                         Your Sites
                       </h4>
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => fetchNetlifyStats(connection.token)}
                         disabled={fetchingStats}
@@ -781,7 +781,7 @@ export default function NetlifyConnection() {
                             )}
                             <div className="flex items-center gap-2 mt-2">
                               <Button
-                                variant="outline"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => handleDeploy(sites[activeSiteIndex].id, deploy.id, 'publish')}
                                 disabled={isActionLoading}
@@ -792,7 +792,7 @@ export default function NetlifyConnection() {
                               </Button>
                               {deploy.state === 'ready' ? (
                                 <Button
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => handleDeploy(sites[activeSiteIndex].id, deploy.id, 'lock')}
                                   disabled={isActionLoading}
@@ -803,7 +803,7 @@ export default function NetlifyConnection() {
                                 </Button>
                               ) : (
                                 <Button
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => handleDeploy(sites[activeSiteIndex].id, deploy.id, 'unlock')}
                                   disabled={isActionLoading}

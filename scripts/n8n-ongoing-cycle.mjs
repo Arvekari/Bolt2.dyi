@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { resolveListenerConfigPathForAgent } from './listener-config-resolution.mjs';
 
 const FILE_PATH = resolve('.ongoing-work.md');
+const CHANGELOG_PATH = resolve('changelog.md');
 const LOOP_STATE = resolve('.n8n-ongoing-cycle.json');
 const LOOP_LOG = resolve('bolt.work/n8n/copilot-inbox/cycle.log');
 const ORCHESTRATOR_STATE = resolve('.n8n-dev-workflows.json');
@@ -13,6 +16,7 @@ const OPEN_TASKS_FALLBACK_FILE = resolve('bolt.work/n8n/open-tasks-table.json');
 const TASK_STATUS_TABLE_MAX_ROWS = 100;
 const EMPTY_SCAN_STOP_THRESHOLD = 2;
 const TASK_ID_PREFIX_PATTERN = /^\[taskId:\s*([a-zA-Z0-9._:-]+)\]\s*(.*)$/i;
+const ORCHESTRATION_TABLE_CANDIDATE_NAMES = ['Project-bolt2-orchestration-tasks', 'orchestration_tasks', 'WwKV0LTmzJj87mm0'];
 
 function readMarkdown() {
   return readFileSync(FILE_PATH, 'utf8');
@@ -47,6 +51,59 @@ function parseObjectives(markdown) {
     }
 
     const entry = line.match(/^\s*-\s*`(PARTIAL|TODO|BLOCKED)`\s+(.+)$/);
+
+    if (!entry) {
+      continue;
+    }
+
+    const taskIdMatch = entry[2].trim().match(TASK_ID_PREFIX_PATTERN);
+    const taskId = taskIdMatch ? taskIdMatch[1] : '';
+    const objectiveText = taskIdMatch ? taskIdMatch[2].trim() : entry[2].trim();
+
+    if (/^none\.?$/i.test(objectiveText)) {
+      continue;
+    }
+
+    objectives.push({
+      priority: currentPriority || 'UNSPECIFIED',
+      status: entry[1],
+      taskId,
+      text: objectiveText,
+    });
+  }
+
+  return objectives;
+}
+
+function parseObjectivesAllStatuses(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const objectives = [];
+  let inPrioritized = false;
+  let currentPriority = '';
+
+  for (const line of lines) {
+    if (line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = true;
+      currentPriority = '';
+      continue;
+    }
+
+    if (inPrioritized && line.startsWith('## ') && !line.startsWith('## Prioritized Unfinished Work')) {
+      break;
+    }
+
+    if (!inPrioritized) {
+      continue;
+    }
+
+    const priorityMatch = line.match(/^###\s+(P\d+)/);
+
+    if (priorityMatch) {
+      currentPriority = priorityMatch[1];
+      continue;
+    }
+
+    const entry = line.match(/^\s*-\s*`(PARTIAL|TODO|BLOCKED|DONE)`\s+(.+)$/);
 
     if (!entry) {
       continue;
@@ -137,6 +194,30 @@ function nextObjective(objectives) {
   return objectives.find((item) => item.status === 'PARTIAL') || objectives.find((item) => item.status === 'TODO') || null;
 }
 
+function extractTaskIdFromDoneText(text) {
+  const value = String(text || '').trim();
+
+  if (value.length === 0) {
+    return '';
+  }
+
+  const explicit = value.match(/\[taskId:\s*([a-zA-Z0-9._:-]+)\]/i);
+
+  if (explicit) {
+    return explicit[1].trim();
+  }
+
+  const parenthesized = [...value.matchAll(/\(([a-zA-Z0-9._:-]+)\)/g)]
+    .map((match) => String(match[1] || '').trim())
+    .filter(Boolean);
+
+  if (parenthesized.length === 0) {
+    return '';
+  }
+
+  return parenthesized.find((item) => item.includes('-')) || parenthesized[0];
+}
+
 function objectiveIdentity(objective) {
   if (!objective) {
     return '';
@@ -182,9 +263,15 @@ function resolveNextObjectiveForExecution(state, objectives) {
   };
 }
 
-function markObjectiveDoneInMarkdown(doneObjective) {
-  if (!doneObjective) {
+function markObjectiveStatusInMarkdown(targetObjective, targetStatus) {
+  if (!targetObjective) {
     return { updated: false, reason: 'missing objective' };
+  }
+
+  const normalizedStatus = String(targetStatus || '').trim().toUpperCase();
+
+  if (!['DONE', 'PARTIAL', 'TODO', 'BLOCKED'].includes(normalizedStatus)) {
+    return { updated: false, reason: `unsupported status '${targetStatus}'` };
   }
 
   const markdown = readMarkdown();
@@ -218,17 +305,17 @@ function markObjectiveDoneInMarkdown(doneObjective) {
     const lineTaskId = taskData ? taskData[1] : '';
     const lineText = taskData ? taskData[2].trim() : statusMatch[3].trim();
     const taskIdMatches =
-      doneObjective.taskId && lineTaskId
-        ? String(doneObjective.taskId).trim().toLowerCase() === String(lineTaskId).trim().toLowerCase()
+      targetObjective.taskId && lineTaskId
+        ? String(targetObjective.taskId).trim().toLowerCase() === String(lineTaskId).trim().toLowerCase()
         : false;
-    const textMatches = !doneObjective.taskId && lineText === doneObjective.text;
+    const textMatches = !targetObjective.taskId && lineText === targetObjective.text;
 
     if (!taskIdMatches && !textMatches) {
       continue;
     }
 
-    if (statusMatch[2] !== 'DONE') {
-      lines[index] = `${statusMatch[1]}\`DONE\` ${statusMatch[3]}`;
+    if (statusMatch[2] !== normalizedStatus) {
+      lines[index] = `${statusMatch[1]}\`${normalizedStatus}\` ${statusMatch[3]}`;
       updated = true;
     }
 
@@ -243,6 +330,131 @@ function markObjectiveDoneInMarkdown(doneObjective) {
     updated,
     reason: updated ? '' : 'objective line not changed',
   };
+}
+
+function markObjectiveDoneInMarkdown(doneObjective) {
+  if (!doneObjective) {
+    return { updated: false, reason: 'missing objective' };
+  }
+
+  return markObjectiveStatusInMarkdown(doneObjective, 'DONE');
+}
+
+function appendDoneObjectiveToChangelog(doneObjective, doneText) {
+  if (!existsSync(CHANGELOG_PATH)) {
+    return { updated: false, reason: 'changelog-missing' };
+  }
+
+  const taskId = String(doneObjective?.taskId || '').trim();
+  const objectiveText = String(doneText || doneObjective?.text || '').trim();
+
+  if (!objectiveText) {
+    return { updated: false, reason: 'missing-objective-text' };
+  }
+
+  const entry = taskId ? `- Completed [taskId: ${taskId}] ${objectiveText}.` : `- Completed ${objectiveText}.`;
+  const changelog = readFileSync(CHANGELOG_PATH, 'utf8');
+
+  if (taskId && changelog.toLowerCase().includes(`[taskid: ${taskId.toLowerCase()}]`)) {
+    return { updated: false, reason: 'already-logged', entry };
+  }
+
+  const lines = changelog.split(/\r?\n/);
+  const unreleasedStart = lines.findIndex((line) => /^##\s+\[Unreleased\]/i.test(line));
+
+  if (unreleasedStart === -1) {
+    return { updated: false, reason: 'unreleased-section-missing', entry };
+  }
+
+  let unreleasedEnd = lines.length;
+
+  for (let index = unreleasedStart + 1; index < lines.length; index++) {
+    if (/^##\s+\[.+\]/.test(lines[index])) {
+      unreleasedEnd = index;
+      break;
+    }
+  }
+
+  let changedHeaderIndex = -1;
+
+  for (let index = unreleasedStart + 1; index < unreleasedEnd; index++) {
+    if (/^###\s+Changed\s*$/i.test(lines[index])) {
+      changedHeaderIndex = index;
+      break;
+    }
+  }
+
+  if (changedHeaderIndex === -1) {
+    const insertAt = unreleasedEnd;
+    lines.splice(insertAt, 0, '', '### Changed', '', entry);
+  } else {
+    let insertAt = changedHeaderIndex + 1;
+
+    while (insertAt < unreleasedEnd && lines[insertAt].trim() === '') {
+      insertAt += 1;
+    }
+
+    while (insertAt < unreleasedEnd && /^-\s+/.test(lines[insertAt])) {
+      insertAt += 1;
+    }
+
+    lines.splice(insertAt, 0, entry);
+  }
+
+  writeFileSync(CHANGELOG_PATH, `${lines.join('\n')}\n`, 'utf8');
+  return { updated: true, reason: '', entry };
+}
+
+function cleanupDoneObjectivesInMarkdown(taskId = '') {
+  const markdown = readMarkdown();
+  const lines = markdown.split(/\r?\n/);
+  const normalizedTaskId = String(taskId || '').trim().toLowerCase();
+  let inPrioritized = false;
+  let updated = false;
+  const kept = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = true;
+      kept.push(line);
+      continue;
+    }
+
+    if (inPrioritized && line.startsWith('## ') && !line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = false;
+      kept.push(line);
+      continue;
+    }
+
+    if (!inPrioritized) {
+      kept.push(line);
+      continue;
+    }
+
+    const doneMatch = line.match(/^\s*-\s*`DONE`\s+(.+)$/);
+
+    if (!doneMatch) {
+      kept.push(line);
+      continue;
+    }
+
+    const taskData = doneMatch[1].trim().match(TASK_ID_PREFIX_PATTERN);
+    const lineTaskId = taskData ? taskData[1].trim().toLowerCase() : '';
+    const removeLine = normalizedTaskId ? lineTaskId === normalizedTaskId : true;
+
+    if (removeLine) {
+      updated = true;
+      continue;
+    }
+
+    kept.push(line);
+  }
+
+  if (updated) {
+    writeFileSync(FILE_PATH, `${kept.join('\n')}\n`, 'utf8');
+  }
+
+  return { updated, reason: updated ? '' : 'no-done-lines-removed' };
 }
 
 function loadState() {
@@ -562,6 +774,8 @@ function assertTaskStatusSemantics(taskStatusTable, openTasksTable) {
 }
 
 function buildOpenTasksTableRows(objectives, measuredAt) {
+  const agentContext = resolveAgentIdentity();
+
   return objectives
     .filter((item) => item.status === 'PARTIAL' || item.status === 'TODO' || item.status === 'BLOCKED')
     .map((item, index) => ({
@@ -569,8 +783,41 @@ function buildOpenTasksTableRows(objectives, measuredAt) {
       priority: item.priority,
       status: item.status,
       objective: item.text,
+      agent: agentContext.agentId,
       updatedAt: measuredAt,
     }));
+}
+
+function getEnvValue(key) {
+  const value = process.env[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function sanitizeAgentPart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function resolveAgentIdentity() {
+  const explicitAgentId =
+    getEnvValue('BOLT_AGENT_ID') ||
+    getEnvValue('N8N_AGENT_ID') ||
+    getEnvValue('AGENT_ID') ||
+    getEnvValue('COMPUTERNAME') ||
+    getEnvValue('HOSTNAME') ||
+    hostname();
+  const hostName = getEnvValue('COMPUTERNAME') || getEnvValue('HOSTNAME') || hostname();
+  const userName = getEnvValue('USERNAME') || getEnvValue('USER') || 'unknown-user';
+  const agentId = sanitizeAgentPart(explicitAgentId) || sanitizeAgentPart(hostName) || 'unknown-agent';
+
+  return {
+    agentId,
+    hostName,
+    userName,
+  };
 }
 
 function validateStatsPayload(stats) {
@@ -608,6 +855,59 @@ function normalizeOngoingWork() {
 
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout || 'ongoing-work normalize failed');
+  }
+}
+
+function emitKeepalivePulse({ source, hasOpenObjectives }) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      'scripts/n8n-keepalive-cadence.mjs',
+      '--count',
+      '1',
+      '--interval-seconds',
+      '0',
+      '--silent',
+      '--source',
+      source,
+      '--status',
+      hasOpenObjectives ? 'in_progress' : 'idle',
+      '--active-task',
+      hasOpenObjectives ? 'true' : 'false',
+    ],
+    {
+      cwd: resolve('.'),
+      encoding: 'utf8',
+    },
+  );
+
+  if (result.status !== 0) {
+    const details = String(result.stderr || result.stdout || 'keepalive pulse failed').trim();
+    logLine(`keepalive pulse failed source=${source} details=${details}`);
+    return {
+      attempted: true,
+      ok: false,
+      sent: 0,
+      error: details,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(String(result.stdout || '').trim());
+    return {
+      attempted: true,
+      ok: Boolean(parsed?.ok),
+      sent: Number(parsed?.sent || 0),
+      callbackUrl: String(parsed?.callbackUrl || '').trim(),
+      returnAddress: parsed?.returnAddress || null,
+    };
+  } catch {
+    return {
+      attempted: true,
+      ok: false,
+      sent: 0,
+      error: 'invalid keepalive pulse json output',
+    };
   }
 }
 
@@ -785,9 +1085,27 @@ async function collectOrchestrationStats() {
 }
 
 function getN8nConfig() {
-  const endpoint = process.env.N8N_BASE_URL || process.env.n8n_Arvekari_endpoint || '';
-  const explicitWebhookBase = process.env.N8N_WEBHOOK_BASE_URL || process.env.n8n_Arvekari_webhookEndpoint || '';
-  const apiKey = process.env.N8N_API_KEY || process.env.n8n_Arvekari_ApiKey || '';
+  const endpoint =
+    process.env.N8N_BASE_URL ||
+    process.env.N8N_ENDPOINT ||
+    process.env.n8n_base_url ||
+    process.env.n8n_endpoint ||
+    process.env.n8n_Arvekari_endpoint ||
+    '';
+  const explicitWebhookBase =
+    process.env.N8N_WEBHOOK_BASE_URL ||
+    process.env.N8N_WEBHOOK_URL ||
+    process.env.n8n_webhook_base_url ||
+    process.env.n8n_webhook_url ||
+    process.env.n8n_Arvekari_webhookEndpoint ||
+    '';
+  const apiKey =
+    process.env.N8N_API_KEY ||
+    process.env.N8N_APIKEY ||
+    process.env.n8n_api_key ||
+    process.env.n8n_apikey ||
+    process.env.n8n_Arvekari_ApiKey ||
+    '';
 
   const normalizedEndpoint = endpoint.trim().replace(/\/$/, '');
   const normalizedWebhook = explicitWebhookBase.trim().replace(/\/$/, '');
@@ -811,6 +1129,343 @@ function getN8nConfig() {
   };
 }
 
+function resolveListenerConfigPath() {
+  return resolveListenerConfigPathForAgent().path;
+}
+
+function normalizeReturnAddress(returnAddress = {}) {
+  const protocol = String(returnAddress.protocol || 'http').trim() || 'http';
+  const pathRaw = String(returnAddress.path || '/publish-status').trim() || '/publish-status';
+  const path = pathRaw.startsWith('/') ? pathRaw : `/${pathRaw}`;
+  const port = Number(returnAddress.port || 8788);
+  const fqdn = String(returnAddress.fqdn || '').trim();
+  const ip = String(returnAddress.ip || '').trim();
+  const preferred = String(returnAddress.hostSelection || returnAddress.mode || 'fqdn').trim().toLowerCase();
+  const hostSelection = preferred === 'ip' ? 'ip' : 'fqdn';
+  const selectedHost = hostSelection === 'ip' ? ip || fqdn : fqdn || ip;
+  const callbackUrl = selectedHost ? `${protocol}://${selectedHost}${port ? `:${port}` : ''}${path}` : '';
+
+  return {
+    protocol,
+    port,
+    path,
+    hostSelection,
+    mode: hostSelection,
+    fqdn,
+    ip,
+    host: selectedHost,
+    callbackUrl,
+  };
+}
+
+function resolveRuntimeReturnAddress() {
+  const fallback = normalizeReturnAddress({
+    protocol: 'http',
+    hostSelection: 'fqdn',
+    fqdn: 'localhost',
+    ip: '',
+    port: 8788,
+    path: '/publish-status',
+  });
+
+  const configPath = resolveListenerConfigPath();
+
+  if (!configPath) {
+    return fallback;
+  }
+
+  try {
+    const raw = JSON.parse(readFileSync(configPath, 'utf8'));
+    return normalizeReturnAddress(raw?.returnAddress || {});
+  } catch {
+    return fallback;
+  }
+}
+
+function readListenerHealthPath() {
+  const configPath = resolveListenerConfigPath();
+
+  if (!configPath) {
+    return '/health';
+  }
+
+  try {
+    const raw = JSON.parse(readFileSync(configPath, 'utf8'));
+    const configured = String(raw?.endpoints?.health || '/health').trim() || '/health';
+    return configured.startsWith('/') ? configured : `/${configured}`;
+  } catch {
+    return '/health';
+  }
+}
+
+function buildListenerHealthUrl() {
+  const returnAddress = resolveRuntimeReturnAddress();
+  const callbackUrl = String(returnAddress.callbackUrl || '').trim();
+
+  if (!callbackUrl) {
+    return { returnAddress, callbackUrl, healthUrl: '', reason: 'missing-callback-url' };
+  }
+
+  try {
+    const callback = new URL(callbackUrl);
+    const healthPath = readListenerHealthPath();
+    const healthUrl = `${callback.origin}${healthPath}`;
+    return { returnAddress, callbackUrl, healthUrl, reason: '' };
+  } catch {
+    return { returnAddress, callbackUrl, healthUrl: '', reason: 'invalid-callback-url' };
+  }
+}
+
+async function isListenerReachable(healthUrl) {
+  if (!healthUrl) {
+    return false;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+async function ensureListenerRunning() {
+  const runtime = buildListenerHealthUrl();
+
+  if (!runtime.healthUrl) {
+    return {
+      ensured: false,
+      started: false,
+      ready: false,
+      reason: runtime.reason,
+      callbackUrl: runtime.callbackUrl,
+    };
+  }
+
+  const alreadyRunning = await isListenerReachable(runtime.healthUrl);
+
+  if (alreadyRunning) {
+    return {
+      ensured: true,
+      started: false,
+      ready: true,
+      reason: 'already-running',
+      callbackUrl: runtime.callbackUrl,
+      healthUrl: runtime.healthUrl,
+    };
+  }
+
+  try {
+    const child = spawn(process.execPath, ['scripts/n8n-local-listener.mjs'], {
+      cwd: resolve('.'),
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    child.unref();
+  } catch (error) {
+    return {
+      ensured: false,
+      started: false,
+      ready: false,
+      reason: error instanceof Error ? error.message : String(error),
+      callbackUrl: runtime.callbackUrl,
+      healthUrl: runtime.healthUrl,
+    };
+  }
+
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    await sleep(1000);
+
+    if (await isListenerReachable(runtime.healthUrl)) {
+      return {
+        ensured: true,
+        started: true,
+        ready: true,
+        reason: '',
+        attempts: attempt,
+        callbackUrl: runtime.callbackUrl,
+        healthUrl: runtime.healthUrl,
+      };
+    }
+  }
+
+  return {
+    ensured: false,
+    started: true,
+    ready: false,
+    reason: 'listener-not-ready-after-start',
+    callbackUrl: runtime.callbackUrl,
+    healthUrl: runtime.healthUrl,
+  };
+}
+
+async function n8nApiRequest(baseUrl, apiKey, path, options = {}) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-N8N-API-KEY': apiKey,
+      ...(options.headers || {}),
+    },
+    body: options.body,
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`n8n api ${options.method || 'GET'} ${path} failed (${response.status}): ${text.slice(0, 220)}`);
+  }
+
+  const text = await response.text();
+
+  if (!text || text.trim().length === 0) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+function resolveOrchestrationTableCandidates() {
+  const envCandidates = [
+    process.env.N8N_ORCHESTRATION_TASKS_TABLE_ID,
+    process.env.N8N_ORCHESTRATION_TASKS_TABLE,
+    process.env.N8N_OPEN_TASKS_TABLE_ID,
+    process.env.N8N_OPEN_TASKS_TABLE,
+  ]
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+
+  return [...new Set([...envCandidates, ...ORCHESTRATION_TABLE_CANDIDATE_NAMES])];
+}
+
+async function resolveOrchestrationTable(baseUrl, apiKey) {
+  const candidates = new Set(resolveOrchestrationTableCandidates());
+  const payload = await n8nApiRequest(baseUrl, apiKey, '/api/v1/data-tables?limit=200');
+  const tables = Array.isArray(payload?.data) ? payload.data : [];
+  const match = tables.find((table) => {
+    const id = String(table?.id || '').trim();
+    const name = String(table?.name || '').trim();
+    return candidates.has(id) || candidates.has(name);
+  });
+
+  if (!match?.id) {
+    return null;
+  }
+
+  return {
+    id: String(match.id),
+    name: String(match?.name || '').trim(),
+  };
+}
+
+function normalizeOrchestrationStatus(status) {
+  const raw = String(status || '').trim().toUpperCase();
+  if (raw === 'DONE' || raw === 'COMPLETED') {
+    return 'DONE';
+  }
+  if (raw === 'PARTIAL' || raw === 'IN_PROGRESS' || raw === 'IN-PROGRESS') {
+    return 'PARTIAL';
+  }
+  if (raw === 'BLOCKED') {
+    return 'BLOCKED';
+  }
+  return 'TODO';
+}
+
+async function upsertTaskStatusToOrchestrationTable(objective, status) {
+  const taskId = String(objective?.taskId || '').trim();
+
+  if (!taskId) {
+    return {
+      synced: false,
+      skipped: true,
+      reason: 'missing taskId',
+    };
+  }
+
+  const { baseUrl, apiKey } = getN8nConfig();
+
+  if (!baseUrl || !apiKey) {
+    return {
+      synced: false,
+      skipped: true,
+      reason: 'missing endpoint or api key',
+    };
+  }
+
+  try {
+    const table = await resolveOrchestrationTable(baseUrl, apiKey);
+
+    if (!table?.id) {
+      return {
+        synced: false,
+        skipped: true,
+        reason: 'orchestration table not found',
+      };
+    }
+
+    const now = new Date().toISOString();
+    const normalizedStatus = normalizeOrchestrationStatus(status);
+    const mergedText = String(objective?.text || '').trim();
+
+    const agentContext = resolveAgentIdentity();
+
+    const upsertBody = {
+      filter: {
+        filters: [
+          {
+            columnName: 'taskId',
+            condition: 'eq',
+            value: taskId,
+          },
+        ],
+      },
+      data: {
+        taskId,
+        status: normalizedStatus,
+        priority: String(objective?.priority || ''),
+        title: mergedText,
+        description: mergedText,
+        agent: agentContext.agentId,
+        updatedTime: now,
+      },
+    };
+
+    await n8nApiRequest(baseUrl, apiKey, `/api/v1/data-tables/${encodeURIComponent(table.id)}/rows/upsert`, {
+      method: 'POST',
+      body: JSON.stringify(upsertBody),
+    });
+
+    return {
+      synced: true,
+      tableId: table.id,
+      tableName: table.name,
+      taskId,
+      status: normalizedStatus,
+      reason: '',
+    };
+  } catch (error) {
+    return {
+      synced: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 async function notifyN8n(eventType, payload) {
   const { baseUrl, webhookBaseUrls, apiKey } = getN8nConfig();
 
@@ -831,9 +1486,21 @@ async function notifyN8n(eventType, payload) {
     };
   }
 
+  const agentContext = resolveAgentIdentity();
+  const listenerBoot = await ensureListenerRunning();
+  const returnAddress = resolveRuntimeReturnAddress();
+  const callbackUrl = returnAddress.callbackUrl || '';
+  payload.agentContext = payload.agentContext || agentContext;
+  payload.returnAddress = payload.returnAddress || returnAddress;
+  payload.callbackUrl = payload.callbackUrl || callbackUrl;
+  payload.listenerBoot = payload.listenerBoot || listenerBoot;
+
   const body = {
     eventType,
     emittedAt: new Date().toISOString(),
+    callbackUrl,
+    returnAddress,
+    listenerBoot,
     payload,
   };
 
@@ -856,7 +1523,6 @@ async function notifyN8n(eventType, payload) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(apiKey ? { 'X-N8N-API-KEY': apiKey } : {}),
           },
           body: JSON.stringify(body),
         });
@@ -1115,6 +1781,32 @@ function printJson(data) {
   console.log(JSON.stringify(data, null, 2));
 }
 
+function parseDoneArguments(args) {
+  const flags = new Set(['--confirm-complete', '--confirm', '--complete']);
+  let confirmComplete = false;
+  const textParts = [];
+
+  for (const arg of args) {
+    const value = String(arg || '').trim();
+
+    if (!value) {
+      continue;
+    }
+
+    if (flags.has(value.toLowerCase())) {
+      confirmComplete = true;
+      continue;
+    }
+
+    textParts.push(value);
+  }
+
+  return {
+    confirmComplete,
+    providedText: textParts.join(' ').trim(),
+  };
+}
+
 async function commandNext() {
   normalizeOngoingWork();
   const state = loadState();
@@ -1125,6 +1817,7 @@ async function commandNext() {
   const cycleGuard = updateCycleGuardState(state, { hasOpenObjectives: Boolean(next), command: 'next' });
   saveState(state);
   const emitted = bridgeEmit();
+  const keepalivePulse = emitKeepalivePulse({ source: 'n8n-ongoing-cycle-next', hasOpenObjectives: Boolean(next) });
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
   const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = buildOpenTasksTableRows(objectives, measuredAt);
@@ -1145,6 +1838,7 @@ async function commandNext() {
     checkupTable,
     failureTable,
     rowSemantics,
+    keepalivePulse,
   });
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify, cycleGuard, { continuingActive, policy });
@@ -1154,6 +1848,7 @@ async function commandNext() {
     next,
     openCount: openTasksTable.length,
     emitted,
+    keepalivePulse,
     notified: notify,
     request,
     continuingActive,
@@ -1175,16 +1870,47 @@ async function commandDone(args) {
   const markdown = readMarkdown();
   const policy = readOrchestrationPolicy(markdown);
   const objectives = parseObjectives(markdown);
-  const { next: currentObjective } = resolveNextObjectiveForExecution(state, objectives);
+  const allObjectives = parseObjectivesAllStatuses(markdown);
+  const doneArgs = parseDoneArguments(args);
+  const providedText = doneArgs.providedText;
+  const requestedTaskId = extractTaskIdFromDoneText(providedText);
+  const { next: resolvedCurrentObjective } = resolveNextObjectiveForExecution(state, objectives);
+  let currentObjective = resolvedCurrentObjective;
+
+  if (requestedTaskId) {
+    const requested = allObjectives.find((item) => String(item.taskId || '').trim().toLowerCase() === requestedTaskId.toLowerCase());
+
+    if (!requested) {
+      throw new Error(`Requested taskId '${requestedTaskId}' not found in .ongoing-work.md.`);
+    }
+
+    if (requested.status === 'DONE') {
+      throw new Error(`Requested taskId '${requestedTaskId}' is already DONE. Use 'partial' only for in-progress tasks.`);
+    }
+
+    currentObjective = requested;
+  }
 
   if (!currentObjective) {
     throw new Error('No active objective to complete. Run `pnpm run ongoing:cycle -- next` to resolve the next queued task.');
   }
 
-  const providedText = args.join(' ').trim();
+  if (currentObjective.status === 'PARTIAL' && !doneArgs.confirmComplete) {
+    const taskLabel = currentObjective.taskId ? `[taskId: ${currentObjective.taskId}]` : currentObjective.text;
+    throw new Error(
+      `Objective ${taskLabel} is PARTIAL. Keep it in partial mode until all remaining work is done. ` +
+        `When fully complete, run done with explicit confirmation flag: ` +
+        `pnpm run ongoing:cycle -- done --confirm-complete "${taskLabel} ..."`,
+    );
+  }
+
   const doneText = providedText || currentObjective.text;
 
   const markdownUpdate = markObjectiveDoneInMarkdown(currentObjective);
+  const changelogUpdate = appendDoneObjectiveToChangelog(currentObjective, doneText);
+  const cleanupUpdate = changelogUpdate.updated
+    ? cleanupDoneObjectivesInMarkdown(currentObjective.taskId || '')
+    : { updated: false, reason: 'skipped-cleanup-when-changelog-not-updated' };
 
   state.completed.push({
     text: doneText,
@@ -1198,6 +1924,7 @@ async function commandDone(args) {
   const cycleGuard = updateCycleGuardState(state, { hasOpenObjectives: Boolean(next), command: 'done' });
   saveState(state);
   const emitted = bridgeEmit();
+  const keepalivePulse = emitKeepalivePulse({ source: 'n8n-ongoing-cycle-done', hasOpenObjectives: Boolean(next) });
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
   const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = buildOpenTasksTableRows(refreshedObjectives, measuredAt);
@@ -1212,6 +1939,8 @@ async function commandDone(args) {
     done: doneText,
     doneObjective: currentObjective,
     markdownUpdate,
+    changelogUpdate,
+    cleanupUpdate,
     next,
     openCount: openTasksTable.length,
     emitted,
@@ -1221,20 +1950,119 @@ async function commandDone(args) {
     checkupTable,
     failureTable,
     rowSemantics,
+    keepalivePulse,
   });
+  const directStatusSync = await upsertTaskStatusToOrchestrationTable(currentObjective, 'DONE');
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify, cycleGuard, { continuingActive, policy });
 
   printJson({
     action: 'done',
     done: doneText,
+    completionConfirmed: doneArgs.confirmComplete,
     completedObjective: currentObjective,
     markdownUpdate,
+    changelogUpdate,
+    cleanupUpdate,
     next,
     openCount: openTasksTable.length,
     completedCount: state.completed.length,
     emitted,
+    keepalivePulse,
     notified: notify,
+    directStatusSync,
+    request,
+    continuingActive,
+    orchestrationStats,
+    openTasksTable,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
+    rowSemantics,
+    cycleGuard,
+    orchestrationPolicy: policy,
+    ...openTasksPersisted,
+  });
+}
+
+async function commandPartial(args) {
+  normalizeOngoingWork();
+  const state = loadState();
+  const markdown = readMarkdown();
+  const policy = readOrchestrationPolicy(markdown);
+  const objectives = parseObjectives(markdown);
+  const allObjectives = parseObjectivesAllStatuses(markdown);
+  const providedText = args.join(' ').trim();
+  const requestedTaskId = extractTaskIdFromDoneText(providedText);
+  const { next: resolvedCurrentObjective } = resolveNextObjectiveForExecution(state, objectives);
+  let currentObjective = resolvedCurrentObjective;
+
+  if (requestedTaskId) {
+    const requested = allObjectives.find((item) => String(item.taskId || '').trim().toLowerCase() === requestedTaskId.toLowerCase());
+
+    if (!requested) {
+      throw new Error(`Requested taskId '${requestedTaskId}' not found in .ongoing-work.md.`);
+    }
+
+    currentObjective = requested;
+  }
+
+  if (!currentObjective) {
+    throw new Error('No active objective to mark partial. Run `pnpm run ongoing:cycle -- next` first.');
+  }
+
+  const partialText = providedText || currentObjective.text;
+  const markdownUpdate = markObjectiveStatusInMarkdown(currentObjective, 'PARTIAL');
+
+  state.activeObjectiveId = objectiveIdentity(currentObjective);
+
+  const refreshedMarkdown = readMarkdown();
+  const refreshedObjectives = parseObjectives(refreshedMarkdown);
+  const { next, continuingActive } = resolveNextObjectiveForExecution(state, refreshedObjectives);
+  const cycleGuard = updateCycleGuardState(state, { hasOpenObjectives: Boolean(next), command: 'next' });
+  saveState(state);
+  const emitted = bridgeEmit();
+  const keepalivePulse = emitKeepalivePulse({ source: 'n8n-ongoing-cycle-partial', hasOpenObjectives: Boolean(next) });
+  const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
+  const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
+  const openTasksTable = buildOpenTasksTableRows(refreshedObjectives, measuredAt);
+  const taskStatusTable = buildTaskStatusTableRows(refreshedObjectives, measuredAt);
+  const checkupTable = buildCheckupTable('objective.partial', next, measuredAt);
+  const failureTable = buildFailureTable(checkupTable, orchestrationStats, measuredAt);
+  const rowSemantics = assertTaskStatusSemantics(taskStatusTable, openTasksTable);
+  validateStatsPayload(orchestrationStats);
+  validateOpenTaskRows(openTasksTable);
+  const openTasksPersisted = persistOpenTasksTable(openTasksTable, orchestrationStats);
+  const notify = await notifyN8n('objective.partial', {
+    partial: partialText,
+    objective: currentObjective,
+    markdownUpdate,
+    next,
+    openCount: openTasksTable.length,
+    emitted,
+    openTasksTable,
+    orchestrationStats,
+    taskStatusTable,
+    checkupTable,
+    failureTable,
+    rowSemantics,
+    keepalivePulse,
+  });
+  const directStatusSync = await upsertTaskStatusToOrchestrationTable(currentObjective, 'PARTIAL');
+  enforceOrchestrationDelivery(notify, policy);
+  const request = buildNextRequest(next, notify, cycleGuard, { continuingActive, policy });
+
+  printJson({
+    action: 'partial',
+    partial: partialText,
+    objective: currentObjective,
+    markdownUpdate,
+    next,
+    openCount: openTasksTable.length,
+    emitted,
+    keepalivePulse,
+    notified: notify,
+    directStatusSync,
     request,
     continuingActive,
     orchestrationStats,
@@ -1259,6 +2087,7 @@ async function commandLoop() {
   const cycleGuard = updateCycleGuardState(state, { hasOpenObjectives: Boolean(next), command: 'scan' });
   saveState(state);
   const emitted = bridgeEmit();
+  const keepalivePulse = emitKeepalivePulse({ source: 'n8n-ongoing-cycle-scan', hasOpenObjectives: Boolean(next) });
   const orchestrationStats = persistOrchestrationStats(await collectOrchestrationStats());
   const measuredAt = orchestrationStats.measuredAt || new Date().toISOString();
   const openTasksTable = buildOpenTasksTableRows(objectives, measuredAt);
@@ -1278,6 +2107,7 @@ async function commandLoop() {
     checkupTable,
     failureTable,
     rowSemantics,
+    keepalivePulse,
   });
   enforceOrchestrationDelivery(notify, policy);
   const request = buildNextRequest(next, notify, cycleGuard, { continuingActive, policy });
@@ -1287,6 +2117,7 @@ async function commandLoop() {
     openCount: openTasksTable.length,
     hasOpenObjectives: openTasksTable.length > 0,
     emitted,
+    keepalivePulse,
     notified: notify,
     request,
     continuingActive,
@@ -1334,6 +2165,11 @@ async function main() {
 
   if (command === 'done') {
     await commandDone(rest);
+    return;
+  }
+
+  if (command === 'partial') {
+    await commandPartial(rest);
     return;
   }
 

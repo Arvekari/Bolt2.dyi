@@ -401,11 +401,11 @@ export const Menu = () => {
             <div className="font-medium text-gray-600 dark:text-gray-400">Your Chats</div>
             {selectionMode && (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={selectAll}>
+                <Button variant="text" size="sm" onClick={selectAll}>
                   {selectedItems.length === filteredList.length ? 'Deselect all' : 'Select all'}
                 </Button>
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   size="sm"
                   onClick={handleBulkDeleteClick}
                   disabled={selectedItems.length === 0}

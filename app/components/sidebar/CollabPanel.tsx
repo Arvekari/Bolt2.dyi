@@ -230,7 +230,7 @@ export function CollabPanel() {
           onChange={(event) => setNewProjectName(event.target.value)}
           placeholder="New project name"
         />
-        <Button size="sm" variant="outline" onClick={createProject} disabled={!canCreateProject}>
+        <Button size="sm" variant="secondary" onClick={createProject} disabled={!canCreateProject}>
           Create
         </Button>
       </div>
@@ -269,7 +269,7 @@ export function CollabPanel() {
             <option value="editor">editor</option>
             <option value="viewer">viewer</option>
           </select>
-          <Button size="sm" variant="outline" onClick={shareProject} disabled={!canShareProject}>
+          <Button size="sm" variant="secondary" onClick={shareProject} disabled={!canShareProject}>
             Share
           </Button>
         </div>
@@ -283,7 +283,7 @@ export function CollabPanel() {
             onChange={(event) => setNewConversationTitle(event.target.value)}
             placeholder="New shared conversation"
           />
-          <Button size="sm" variant="outline" onClick={createConversation} disabled={!canCreateConversation}>
+          <Button size="sm" variant="secondary" onClick={createConversation} disabled={!canCreateConversation}>
             New
           </Button>
         </div>

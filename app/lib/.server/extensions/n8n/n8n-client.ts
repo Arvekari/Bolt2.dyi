@@ -29,7 +29,7 @@ export type N8nUpdateResult = {
 
 function getEnvValue(env: EnvLike, key: string): string | undefined {
   const processEnv = (globalThis as any)?.process?.env;
-  const value = env?.[key] ?? processEnv?.[key];
+  const value = env === undefined ? processEnv?.[key] : env?.[key];
 
   return typeof value === 'string' ? value : undefined;
 }

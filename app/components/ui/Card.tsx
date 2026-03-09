@@ -9,7 +9,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(({ className, ...props }, ref
     <div
       ref={ref}
       className={classNames(
-        `rounded-lg ${uiColorRoleTokens.borderDefault} bg-bolt-elements-bg-depth-1 text-bolt-elements-textPrimary shadow-sm`,
+        `rounded-lg ${uiColorRoleTokens.borderDefault} bg-bolt-elements-bg-depth-1 text-bolt-elements-textPrimary shadow-sm transition-all duration-150 ease-out hover:border-bolt-elements-borderColorActive/50 hover:shadow-md`,
         className,
       )}
       {...props}

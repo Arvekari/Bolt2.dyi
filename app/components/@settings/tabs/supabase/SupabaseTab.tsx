@@ -545,7 +545,7 @@ export default function SupabaseTab() {
                                   />
                                   <Button
                                     size="icon"
-                                    variant="outline"
+                                    variant="secondary"
                                     onClick={(e) => {
                                       e.stopPropagation();
 
@@ -571,7 +571,7 @@ export default function SupabaseTab() {
                                   />
                                   <Button
                                     size="icon"
-                                    variant="outline"
+                                    variant="secondary"
                                     onClick={(e) => {
                                       e.stopPropagation();
 
@@ -628,7 +628,7 @@ export default function SupabaseTab() {
             <Button
               onClick={testConnection}
               disabled={connectionTest?.status === 'testing'}
-              variant="outline"
+              variant="secondary"
               size="sm"
               className="flex items-center gap-2 hover:bg-bolt-elements-item-backgroundActive/10 hover:text-bolt-elements-textPrimary dark:hover:bg-bolt-elements-item-backgroundActive/10 dark:hover:text-bolt-elements-textPrimary transition-colors"
             >

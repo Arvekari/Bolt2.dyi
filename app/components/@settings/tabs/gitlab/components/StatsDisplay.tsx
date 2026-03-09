@@ -80,7 +80,7 @@ export function StatsDisplay({ stats, onRefresh, isRefreshing }: StatsDisplayPro
             Last updated: {new Date(stats.lastUpdated).toLocaleString()}
           </span>
           {onRefresh && (
-            <Button onClick={onRefresh} disabled={isRefreshing} variant="outline" size="sm" className="text-xs">
+            <Button onClick={onRefresh} disabled={isRefreshing} variant="secondary" size="sm" className="text-xs">
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
           )}

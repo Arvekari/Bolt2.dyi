@@ -1,29 +1,15 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import { resolve } from 'node:path';
+import { resolveListenerConfigPathForAgent } from './listener-config-resolution.mjs';
 
 const FILE_PATH = resolve('.ongoing-work.md');
-const WORKSPACE_CONFIG_PATH = resolve('..', 'listener-config.json');
-const ROOT_CONFIG_PATH = resolve('listener-config.json');
-const LEGACY_CONFIG_PATH = resolve('bolt.work/n8n/listener-config.json');
 const TASK_ID_PREFIX_PATTERN = /^\[taskId:\s*([a-zA-Z0-9._:-]+)\]\s*(.*)$/i;
 
 function resolveListenerConfigPath() {
-  if (existsSync(WORKSPACE_CONFIG_PATH)) {
-    return WORKSPACE_CONFIG_PATH;
-  }
-
-  if (existsSync(ROOT_CONFIG_PATH)) {
-    return ROOT_CONFIG_PATH;
-  }
-
-  if (existsSync(LEGACY_CONFIG_PATH)) {
-    return LEGACY_CONFIG_PATH;
-  }
-
-  return '';
+  return resolveListenerConfigPathForAgent().path;
 }
 
 function normalizeReturnAddress(returnAddress = {}) {

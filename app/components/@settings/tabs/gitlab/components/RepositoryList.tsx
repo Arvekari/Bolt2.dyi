@@ -56,7 +56,7 @@ export function RepositoryList({ repositories, onClone, onRefresh, isRefreshing 
           <Button
             onClick={onRefresh}
             disabled={isRefreshing}
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="flex items-center gap-2"
           >
@@ -113,7 +113,7 @@ export function RepositoryList({ repositories, onClone, onRefresh, isRefreshing 
                   <Button
                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                   >
                     <div className="i-ph:caret-left w-4 h-4" />
@@ -125,7 +125,7 @@ export function RepositoryList({ repositories, onClone, onRefresh, isRefreshing 
                   <Button
                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                   >
                     Next

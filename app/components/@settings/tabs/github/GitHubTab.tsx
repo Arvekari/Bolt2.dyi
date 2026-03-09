@@ -228,7 +228,7 @@ export default function GitHubTab() {
                   {stats.repos.length > 12 && !isReposExpanded && (
                     <div className="text-center">
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setIsReposExpanded(true)}
                         className="text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary"
                       >

@@ -12,7 +12,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={classNames(
-      `inline-flex ${uiSpacingTokens.minH32} items-center justify-center rounded-md ${uiColorRoleTokens.surfaceDepth2} ${uiSpacingTokens.pad4} text-bolt-elements-textSecondary ${uiColorRoleTokens.borderDefault}`,
+      `inline-flex ${uiSpacingTokens.minH32} items-center justify-center rounded-md ${uiColorRoleTokens.surfaceDepth2} ${uiSpacingTokens.pad4} text-bolt-elements-textSecondary ${uiColorRoleTokens.borderDefault} gap-1 overflow-x-auto`,
       className,
     )}
     {...props}
@@ -27,7 +27,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={classNames(
-      `inline-flex items-center justify-center whitespace-nowrap rounded-sm ${uiSpacingTokens.px16} ${uiSpacingTokens.py4} ${uiTypographyTokens.caption} ring-offset-bolt-elements-bg-depth-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bolt-elements-borderColorActive focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-bolt-elements-bg-depth-1 data-[state=active]:text-bolt-elements-textPrimary data-[state=active]:shadow-sm`,
+      `inline-flex items-center justify-center whitespace-nowrap rounded-sm ${uiSpacingTokens.px16} ${uiSpacingTokens.py4} ${uiTypographyTokens.caption} ring-offset-bolt-elements-bg-depth-1 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bolt-elements-borderColorActive focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-bolt-elements-bg-depth-1 data-[state=active]:text-bolt-elements-textPrimary data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-bolt-elements-borderColorActive/60`,
       className,
     )}
     {...props}

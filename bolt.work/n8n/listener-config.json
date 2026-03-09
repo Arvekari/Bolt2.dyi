@@ -1,0 +1,48 @@
+{
+  "listener": {
+    "host": "0.0.0.0",
+    "port": 8788
+  },
+  "returnAddress": {
+    "protocol": "http",
+    "fqdn": "localhost",
+    "port": 8788,
+    "path": "/publish-status"
+  },
+  "endpoints": {
+    "health": "/health",
+    "config": "/config",
+    "publishStatus": "/publish-status",
+    "taskPush": "/task-push"
+  },
+  "storage": {
+    "inboxDir": "bolt.work/n8n/copilot-inbox",
+    "publishStatusLatestFile": "publish-status.latest.json",
+    "taskPushLatestFile": "task-push.latest.json",
+    "taskPushPromptFile": "task-push.latest-prompt.md",
+    "taskPushHistoryDir": "task-push-history"
+  },
+  "vscodeGuard": {
+    "enabled": true,
+    "checkIntervalSeconds": 20,
+    "processNames": [
+      "Code.exe",
+      "code.exe",
+      "Code - Insiders.exe",
+      "Code - OSS.exe"
+    ]
+  },
+  "n8nQueue": {
+    "enabled": true,
+    "workflowName": "Project-bolt2-machine-task-push-sync",
+    "tableName": "Project-bolt2-machine-task-queue"
+  },
+  "network": {
+    "allowedSourceHosts": [
+      "127.0.0.1",
+      "::1",
+      "localhost",
+      "172.17.132.201"
+    ]
+  }
+}

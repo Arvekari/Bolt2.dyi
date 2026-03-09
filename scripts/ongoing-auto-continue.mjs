@@ -55,6 +55,41 @@ function runVerifyAndCapture() {
   };
 }
 
+function emitKeepalivePulse() {
+  try {
+    const output = runNodeScript([
+      'scripts/n8n-keepalive-cadence.mjs',
+      '--count',
+      '1',
+      '--interval-seconds',
+      '0',
+      '--silent',
+      '--source',
+      'ongoing-auto-continue',
+      '--status',
+      'in_progress',
+      '--active-task',
+      'true',
+    ]);
+
+    const parsed = JSON.parse(output);
+    return {
+      attempted: true,
+      ok: Boolean(parsed?.ok),
+      sent: Number(parsed?.sent || 0),
+      callbackUrl: String(parsed?.callbackUrl || '').trim(),
+      returnAddress: parsed?.returnAddress || null,
+    };
+  } catch (error) {
+    return {
+      attempted: true,
+      ok: false,
+      sent: 0,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function updateLiveCommands(lastCommand, nextCommand) {
   const content = readFileSync(ONGOING_WORK_FILE, 'utf8');
   const lines = content.split(/\r?\n/);
@@ -150,10 +185,14 @@ function emit(result) {
 
 function main() {
   const { retries } = parseArgs(process.argv.slice(2));
+  const keepalivePulse = emitKeepalivePulse();
   const gate = resolveNextWithRetries(retries);
 
   if (gate.status !== 'execute-now') {
-    emit(gate);
+    emit({
+      ...gate,
+      keepalivePulse,
+    });
     return;
   }
 
@@ -166,6 +205,7 @@ function main() {
 
   emit({
     ...gate,
+    keepalivePulse,
     validation,
     ongoingWorkUpdated: true,
     followUpGate,

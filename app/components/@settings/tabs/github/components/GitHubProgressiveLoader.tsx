@@ -157,13 +157,13 @@ export function GitHubProgressiveLoader({
 
         <div className="flex gap-2">
           {onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry} className="text-xs">
+            <Button variant="secondary" size="sm" onClick={onRetry} className="text-xs">
               <RefreshCw className="w-3 h-3 mr-1" />
               Try Again
             </Button>
           )}
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh} className="text-xs">
+            <Button variant="secondary" size="sm" onClick={onRefresh} className="text-xs">
               <RefreshCw className="w-3 h-3 mr-1" />
               Refresh
             </Button>

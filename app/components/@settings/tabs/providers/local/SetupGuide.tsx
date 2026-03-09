@@ -29,7 +29,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-6">
         <Button
-          variant="ghost"
+          variant="text"
           size="sm"
           onClick={onBack}
           className="bg-transparent hover:bg-transparent text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-all duration-200 p-2"
@@ -125,7 +125,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                     <strong className="text-bolt-elements-textPrimary">macOS</strong>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="w-full bg-gradient-to-r from-purple-500/10 to-purple-600/10 hover:from-purple-500/20 hover:to-purple-600/20 border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 gap-2 group shadow-sm hover:shadow-lg hover:shadow-purple-500/20 font-medium"
                     _asChild
@@ -148,7 +148,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                     <strong className="text-bolt-elements-textPrimary">Windows</strong>
                   </div>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="w-full bg-gradient-to-r from-purple-500/10 to-purple-600/10 hover:from-purple-500/20 hover:to-purple-600/20 border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 gap-2 group shadow-sm hover:shadow-lg hover:shadow-purple-500/20 font-medium"
                     _asChild
@@ -373,7 +373,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                 Download LM Studio for Windows, macOS, or Linux from the official website.
               </p>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 hover:from-blue-500/20 hover:to-blue-600/20 border-blue-500/30 hover:border-blue-500/50 transition-all duration-300 gap-2 group shadow-sm hover:shadow-lg hover:shadow-blue-500/20 font-medium"
                 _asChild

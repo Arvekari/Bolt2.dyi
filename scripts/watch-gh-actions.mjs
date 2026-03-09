@@ -69,6 +69,45 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function red(text) {
+  return `\x1b[31m${text}\x1b[0m`;
+}
+
+function isGitHubRateLimitError(message) {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('rate limit exceeded') || normalized.includes('api rate limit exceeded');
+}
+
+function buildPackagePageUrl(repo) {
+  const [owner, name] = String(repo || '').split('/');
+
+  if (!owner || !name) {
+    return 'https://github.com';
+  }
+
+  return `https://github.com/${owner}?tab=packages&repo_name=${name}`;
+}
+
+function printRateLimitOperatorNotice({ repo, sha, image, imageTag }) {
+  const packagePageUrl = buildPackagePageUrl(repo);
+  const imageRef = image && imageTag ? `${image}:${imageTag}` : image || 'ghcr package image';
+  const lines = [
+    '',
+    '🚨 GitHub API rate limit reached for workflow watcher.',
+    'Do publish verification manually now, or use an n8n fallback workflow.',
+    `Manual check: ${packagePageUrl}`,
+    `Expected image tag: ${imageRef}`,
+    `Commit SHA: ${sha}`,
+    'n8n fallback (recommended when token is missing):',
+    '1) Trigger after push.',
+    '2) Poll package page at +10, +20, +30, +40, +50 minutes.',
+    '3) Compare latest package publish/update time or sha-tag against pushed commit.',
+    '4) Notify user immediately when new image/release is detected (or after +50m timeout).',
+  ];
+
+  console.error(red(lines.join('\n')));
+}
+
 function logger(logFile) {
   return {
     info(message) {
@@ -339,12 +378,13 @@ async function watch(args) {
 (async () => {
   const args = parseArgs(process.argv.slice(2));
   const scriptPath = fileURLToPath(import.meta.url);
+  const repo = args.repo || getRepoFromOrigin();
+  const sha = resolveSha(args.sha);
 
   if (args.detach) {
     const forwardArgs = process.argv.slice(2).filter((arg) => arg !== '--detach');
     const detachedLog = args.logFile || resolve('.git/gh-watch.log');
-    const detachedSha = resolveSha(args.sha);
-    const detachedStatusFile = resolveStatusFile(args, detachedSha);
+    const detachedStatusFile = resolveStatusFile(args, sha);
     const hasStatusFileArg = forwardArgs.includes('--status-file');
 
     if (!hasStatusFileArg) {
@@ -365,7 +405,49 @@ async function watch(args) {
     await watch(args);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const statusFile = resolveStatusFile(args, sha);
+
+    if (isGitHubRateLimitError(message)) {
+      const imageTag = resolveImageTag(args, sha);
+
+      printRateLimitOperatorNotice({
+        repo,
+        sha,
+        image: args.image,
+        imageTag,
+      });
+
+      writeFinalStatus(statusFile, {
+        status: 'fail',
+        repo,
+        sha,
+        observedAt: nowIso(),
+        reason: 'github-api-rate-limit',
+        requireImagePublish: args.requireImagePublish,
+        image: args.image,
+        imageTag,
+        packagePageUrl: buildPackagePageUrl(repo),
+        operatorActionRequired: true,
+        suggestedPollingMinutes: [10, 20, 30, 40, 50],
+      });
+
+      process.exit(1);
+    }
+
     console.error(`[${nowIso()}] ERROR ${message}`);
+
+    writeFinalStatus(statusFile, {
+      status: 'fail',
+      repo,
+      sha,
+      observedAt: nowIso(),
+      reason: 'watcher-error',
+      error: message,
+      requireImagePublish: args.requireImagePublish,
+      image: args.image,
+      imageTag: resolveImageTag(args, sha),
+    });
+
     process.exit(1);
   }
 })();

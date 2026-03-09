@@ -42,7 +42,7 @@ export const ServiceHeader = memo(
               <Button
                 onClick={onTestConnection}
                 disabled={isTestingConnection}
-                variant="outline"
+                variant="secondary"
                 className="flex items-center gap-2 hover:bg-bolt-elements-item-backgroundActive/10 hover:text-bolt-elements-textPrimary dark:hover:bg-bolt-elements-item-backgroundActive/10 dark:hover:text-bolt-elements-textPrimary transition-colors"
               >
                 {isTestingConnection ? (

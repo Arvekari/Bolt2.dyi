@@ -64,7 +64,7 @@ export function ImportButtons(importChat: ((description: string, messages: Messa
               const input = document.getElementById('chat-import');
               input?.click();
             }}
-            variant="default"
+            variant="primary"
             size="lg"
             className={classNames(
               'gap-2 bg-bolt-elements-background-depth-1',

@@ -334,7 +334,7 @@ export const ColorSchemeDialog: React.FC<ColorSchemeDialogProps> = ({ setDesignS
                 <Button variant="secondary" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="ghost" onClick={handleSave} className={uiColorRoleTokens.primary}>
+                <Button variant="text" onClick={handleSave} className={uiColorRoleTokens.primary}>
                   Save Changes
                 </Button>
               </div>

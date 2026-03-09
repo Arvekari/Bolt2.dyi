@@ -324,7 +324,7 @@ export default function LocalProvidersTab() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setViewMode('guide')}
                 className="bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 border-bolt-elements-borderColor hover:border-purple-500/30 transition-all duration-200 gap-2"
@@ -333,7 +333,7 @@ export default function LocalProvidersTab() {
                 Setup Guide
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setViewMode('status')}
                 className="bg-bolt-elements-background-depth-2 hover:bg-bolt-elements-background-depth-3 border-bolt-elements-borderColor hover:border-purple-500/30 transition-all duration-200 gap-2"
@@ -368,7 +368,7 @@ export default function LocalProvidersTab() {
                         <h3 className="text-lg font-semibold text-bolt-elements-textPrimary">Installed Models</h3>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={fetchOllamaModels}
                         disabled={isLoadingModels}
@@ -408,7 +408,7 @@ export default function LocalProvidersTab() {
                           to browse available models
                         </p>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           className="bg-gradient-to-r from-purple-500/8 to-purple-600/8 hover:from-purple-500/15 hover:to-purple-600/15 border-purple-500/25 hover:border-purple-500/40 transition-all duration-300 gap-2 group shadow-sm hover:shadow-md font-medium"
                           _asChild
@@ -450,7 +450,7 @@ export default function LocalProvidersTab() {
                         <h3 className="text-lg font-semibold text-bolt-elements-textPrimary">Available Models</h3>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => fetchLMStudioModels(provider.settings.baseUrl!)}
                         disabled={isLoadingLMStudioModels}
@@ -480,7 +480,7 @@ export default function LocalProvidersTab() {
                           Make sure LM Studio is running with the local server started and CORS enabled.
                         </p>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           className="bg-gradient-to-r from-blue-500/8 to-blue-600/8 hover:from-blue-500/15 hover:to-blue-600/15 border-blue-500/25 hover:border-blue-500/40 transition-all duration-300 gap-2 group shadow-sm hover:shadow-md font-medium"
                           _asChild

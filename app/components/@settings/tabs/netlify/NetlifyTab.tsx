@@ -820,21 +820,21 @@ export default function NetlifyTab() {
 
               <div className="flex flex-wrap items-center gap-4">
                 <Badge
-                  variant="outline"
+                  variant="subtle"
                   className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                 >
                   <div className="i-ph:buildings w-4 h-4 text-bolt-elements-item-contentAccent" />
                   <span>{connection.stats.totalSites} Sites</span>
                 </Badge>
                 <Badge
-                  variant="outline"
+                  variant="subtle"
                   className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                 >
                   <div className="i-ph:rocket-launch w-4 h-4 text-bolt-elements-item-contentAccent" />
                   <span>{deploymentCount} Deployments</span>
                 </Badge>
                 <Badge
-                  variant="outline"
+                  variant="subtle"
                   className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                 >
                   <div className="i-ph:hammer w-4 h-4 text-bolt-elements-item-contentAccent" />
@@ -842,7 +842,7 @@ export default function NetlifyTab() {
                 </Badge>
                 {lastUpdated && (
                   <Badge
-                    variant="outline"
+                    variant="subtle"
                     className="flex items-center gap-1 text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary"
                   >
                     <div className="i-ph:clock w-4 h-4 text-bolt-elements-item-contentAccent" />
@@ -869,7 +869,7 @@ export default function NetlifyTab() {
                         )}
                       </div>
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => fetchNetlifyStats(connection.token)}
                         disabled={fetchingStats}
@@ -1092,7 +1092,7 @@ export default function NetlifyTab() {
                             )}
                             <div className="flex items-center gap-2 mt-2">
                               <Button
-                                variant="outline"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => {
                                   const siteForDeploy = sites.find((site) => site.id === deploy.site_id);
@@ -1109,7 +1109,7 @@ export default function NetlifyTab() {
                               </Button>
                               {deploy.state === 'ready' ? (
                                 <Button
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => {
                                     const siteForDeploy = sites.find((site) => site.id === deploy.site_id);
@@ -1126,7 +1126,7 @@ export default function NetlifyTab() {
                                 </Button>
                               ) : (
                                 <Button
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={() => {
                                     const siteForDeploy = sites.find((site) => site.id === deploy.site_id);
@@ -1225,7 +1225,7 @@ export default function NetlifyTab() {
             <Button
               onClick={testConnection}
               disabled={connectionTest?.status === 'testing'}
-              variant="outline"
+              variant="secondary"
               className="flex items-center gap-2 hover:bg-bolt-elements-item-backgroundActive/10 hover:text-bolt-elements-textPrimary dark:hover:bg-bolt-elements-item-backgroundActive/10 dark:hover:text-bolt-elements-textPrimary transition-colors"
             >
               {connectionTest?.status === 'testing' ? (

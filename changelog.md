@@ -33,6 +33,8 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Ongoing bridge prompt/payload now includes resolved `agentId`, explicit PARTIAL-to-DONE closure policy guidance, and command handoff metadata for more agentic autonomous loop execution.
 - Ongoing bridge prompt now also resolves and prints effective `callbackUrl` + normalized `returnAddress`, and explicitly instructs agent handoffs to report both values.
 - Vercel connection panel modernization now uses shared tokenized UI primitives (`Input`, `Button`) and unified surface/status styling in `app/components/@settings/tabs/vercel/components/VercelConnection.tsx`.
+- Completed [taskId: bolt2-p0n-agents-do-not-report-the-callbackurl-and-returnaddres] [taskId: bolt2-p0n-agents-do-not-report-the-callbackurl-and-returnaddres] CallbackUrl/returnAddress now propagate in cycle, keepalive, and auto-continue/build-check flows with listener auto-start and metadata reporting..
+- Completed [taskId: bolt2-uncat-kriittinen-bolt-arva-hakemiston-juuressa-oleva-listener-] [taskId: bolt2-uncat-kriittinen-bolt-arva-hakemiston-juuressa-oleva-listener-] Added agent-specific listener config files + agent.id metadata and startup-time config resolution by agent name across listener, cycle, bridge and keepalive scripts..
 
 ### Fixed
 
@@ -161,3 +163,5 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ---
 
 For historical upstream changes before this fork baseline, refer to the original bolt.diy repository release history.
+
+

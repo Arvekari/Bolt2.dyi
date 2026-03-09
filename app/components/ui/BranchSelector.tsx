@@ -185,7 +185,7 @@ export function BranchSelector({
                   <GitBranch className="w-8 h-8 mx-auto" />
                 </div>
                 <p className="text-sm text-bolt-elements-icon-error text-center">{error}</p>
-                <Button onClick={fetchBranches} variant="outline" size="sm">
+                <Button onClick={fetchBranches} variant="secondary" size="sm">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Retry
                 </Button>
@@ -267,7 +267,7 @@ export function BranchSelector({
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <Button onClick={onClose} variant="outline" size="sm">
+                <Button onClick={onClose} variant="secondary" size="sm">
                   Cancel
                 </Button>
                 <Button

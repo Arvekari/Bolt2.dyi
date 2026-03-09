@@ -38,6 +38,27 @@ interface ControlPanelProps {
 // Beta status for experimental features
 const BETA_TABS = new Set<TabType>(['local-providers', 'mcp']);
 
+type SettingsSection = 'General' | 'Preferences' | 'AI' | 'Integrations' | 'Security' | 'System';
+
+const SECTION_ORDER: SettingsSection[] = ['General', 'Preferences', 'AI', 'Integrations', 'Security', 'System'];
+
+const TAB_SECTION_MAP: Partial<Record<TabType, SettingsSection>> = {
+  profile: 'General',
+  settings: 'General',
+  notifications: 'Preferences',
+  features: 'Preferences',
+  'cloud-providers': 'AI',
+  'local-providers': 'AI',
+  mcp: 'AI',
+  github: 'Integrations',
+  gitlab: 'Integrations',
+  netlify: 'Integrations',
+  vercel: 'Integrations',
+  supabase: 'Integrations',
+  data: 'System',
+  'event-logs': 'System',
+};
+
 const BetaLabel = () => (
   <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-purple-500/10 dark:bg-purple-500/20">
     <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400">BETA</span>
@@ -90,6 +111,24 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
       })
       .sort((a, b) => a.order - b.order);
   }, [tabConfiguration, profile?.preferences?.notifications, baseTabConfig]);
+
+  const sectionedTabs = useMemo(() => {
+    const buckets = SECTION_ORDER.reduce(
+      (acc, section) => {
+        acc[section] = [];
+
+        return acc;
+      },
+      {} as Record<SettingsSection, typeof visibleTabs>,
+    );
+
+    for (const tab of visibleTabs) {
+      const section = TAB_SECTION_MAP[tab.id as TabType] ?? 'General';
+      buckets[section].push(tab);
+    }
+
+    return buckets;
+  }, [visibleTabs]);
 
   // Reset to default view when modal opens/closes
   useEffect(() => {
@@ -304,33 +343,57 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                     {activeTab ? (
                       getTabComponent(activeTab)
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
-                        {visibleTabs.map((tab, index) => (
-                          <div
-                            key={tab.id}
-                            className={classNames(
-                              'aspect-[1.5/1] transition-transform duration-100 ease-out',
-                              'hover:scale-[1.01]',
-                            )}
-                            style={{
-                              animationDelay: `${index * 30}ms`,
-                              animation: open ? 'fadeInUp 200ms ease-out forwards' : 'none',
-                            }}
-                          >
-                            <TabTile
-                              tab={tab}
-                              onClick={() => handleTabClick(tab.id as TabType)}
-                              isActive={activeTab === tab.id}
-                              hasUpdate={getTabUpdateStatus(tab.id)}
-                              statusMessage={getStatusMessage(tab.id)}
-                              description={TAB_DESCRIPTIONS[tab.id]}
-                              isLoading={loadingTab === tab.id}
-                              className="h-full relative"
-                            >
-                              {BETA_TABS.has(tab.id) && <BetaLabel />}
-                            </TabTile>
-                          </div>
-                        ))}
+                      <div className="space-y-6 relative">
+                        {SECTION_ORDER.map((section) => {
+                          const tabs = sectionedTabs[section];
+
+                          if (tabs.length === 0 && section !== 'Security') {
+                            return null;
+                          }
+
+                          return (
+                            <section key={section} className="space-y-3">
+                              <h3 className="text-sm font-semibold text-bolt-elements-textPrimary">{section}</h3>
+
+                              {tabs.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                  {tabs.map((tab, index) => (
+                                    <div
+                                      key={tab.id}
+                                      className={classNames(
+                                        'aspect-[1.5/1] transition-transform duration-100 ease-out',
+                                        'hover:scale-[1.01]',
+                                      )}
+                                      style={{
+                                        animationDelay: `${index * 30}ms`,
+                                        animation: open ? 'fadeInUp 200ms ease-out forwards' : 'none',
+                                      }}
+                                    >
+                                      <TabTile
+                                        tab={tab}
+                                        onClick={() => handleTabClick(tab.id as TabType)}
+                                        isActive={activeTab === tab.id}
+                                        hasUpdate={getTabUpdateStatus(tab.id)}
+                                        statusMessage={getStatusMessage(tab.id)}
+                                        description={TAB_DESCRIPTIONS[tab.id]}
+                                        isLoading={loadingTab === tab.id}
+                                        className="h-full relative"
+                                      >
+                                        {BETA_TABS.has(tab.id) && <BetaLabel />}
+                                      </TabTile>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 p-4">
+                                  <p className="text-sm text-bolt-elements-textSecondary">
+                                    No security settings are currently available.
+                                  </p>
+                                </div>
+                              )}
+                            </section>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

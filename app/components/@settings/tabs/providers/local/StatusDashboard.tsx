@@ -15,7 +15,7 @@ function StatusDashboard({ onBack }: { onBack: () => void }) {
       {/* Header with Back Button */}
       <div className="flex items-center gap-4 mb-6">
         <Button
-          variant="ghost"
+          variant="text"
           size="sm"
           onClick={onBack}
           className="bg-transparent hover:bg-transparent text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-all duration-200 p-2"

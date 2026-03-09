@@ -235,7 +235,7 @@ export function GitHubCacheManager({ className = '', showStats = true }: GitHubC
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refreshCacheData} disabled={isLoading}>
+          <Button variant="secondary" size="sm" onClick={refreshCacheData} disabled={isLoading}>
             <RefreshCw className={classNames('w-3 h-3', isLoading ? 'animate-spin' : '')} />
           </Button>
         </div>
@@ -305,7 +305,7 @@ export function GitHubCacheManager({ className = '', showStats = true }: GitHubC
                 </div>
 
                 <Button
-                  variant="ghost"
+                  variant="text"
                   size="sm"
                   onClick={() => handleClearSpecific(entry.key)}
                   disabled={isLoading}
@@ -321,7 +321,7 @@ export function GitHubCacheManager({ className = '', showStats = true }: GitHubC
 
       <div className="flex flex-wrap gap-2 pt-2 border-t border-bolt-elements-borderColor">
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={handleClearExpired}
           disabled={isLoading}
@@ -332,7 +332,7 @@ export function GitHubCacheManager({ className = '', showStats = true }: GitHubC
         </Button>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={handleCompactCache}
           disabled={isLoading}
@@ -344,7 +344,7 @@ export function GitHubCacheManager({ className = '', showStats = true }: GitHubC
 
         {cacheEntries.length > 0 && (
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={handleClearAll}
             disabled={isLoading}

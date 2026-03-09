@@ -1,0 +1,2 @@
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Popup "Port action required for n8n local listener.  Please open inbound TCP port 8788 in your security product or Windows Firewall.  Reason: listener-port-open-failed-request-created", 0, "Bolt2 Listener Port Alert", 48

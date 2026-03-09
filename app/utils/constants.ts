@@ -33,6 +33,38 @@ PROVIDER_LIST.forEach((provider) => {
 
 export const STARTER_TEMPLATES: Template[] = [
   {
+    name: 'Express Backend',
+    label: 'Express Backend Service',
+    description: 'Express backend starter for building Node.js API services with route modules and service layer.',
+    githubRepo: 'builtin:express-backend',
+    tags: ['backend', 'node', 'express', 'api', 'service'],
+    icon: 'i-ph:server',
+  },
+  {
+    name: 'Express + React Fullstack',
+    label: 'Express + React Fullstack',
+    description: 'Full-stack starter with Express backend and React frontend wiring for API-first product scaffolding.',
+    githubRepo: 'builtin:express-react-fullstack',
+    tags: ['fullstack', 'backend', 'frontend', 'node', 'express', 'react'],
+    icon: 'i-ph:stack',
+  },
+  {
+    name: 'FastAPI Backend',
+    label: 'FastAPI Backend Service',
+    description: 'FastAPI backend starter for building Python API services with structured routers and service layer.',
+    githubRepo: 'builtin:fastapi-backend',
+    tags: ['backend', 'python', 'fastapi', 'api', 'service'],
+    icon: 'i-ph:server',
+  },
+  {
+    name: 'FastAPI + React Fullstack',
+    label: 'FastAPI + React Fullstack',
+    description: 'Full-stack starter with FastAPI backend and React frontend wiring for API-first product scaffolding.',
+    githubRepo: 'builtin:fastapi-react-fullstack',
+    tags: ['fullstack', 'backend', 'frontend', 'python', 'fastapi', 'react'],
+    icon: 'i-ph:stack',
+  },
+  {
     name: 'Expo App',
     label: 'Expo App',
     description: 'Expo starter template for building cross-platform mobile apps',

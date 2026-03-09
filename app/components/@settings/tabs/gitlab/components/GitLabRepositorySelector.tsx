@@ -167,7 +167,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
     return (
       <div className="text-center p-8">
         <p className="text-bolt-elements-textSecondary mb-4">Please connect to GitLab first to browse repositories</p>
-        <Button variant="outline" onClick={() => window.location.reload()}>
+        <Button variant="secondary" onClick={() => window.location.reload()}>
           Refresh Connection
         </Button>
       </div>
@@ -182,7 +182,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
           <p className="font-medium">Failed to load repositories</p>
           <p className="text-sm text-bolt-elements-textSecondary mt-1">{error}</p>
         </div>
-        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+        <Button variant="secondary" onClick={handleRefresh} disabled={isRefreshing}>
           <RefreshCw className={classNames('w-4 h-4 mr-2', { 'animate-spin': isRefreshing })} />
           Try Again
         </Button>
@@ -204,7 +204,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
       <div className="text-center p-8">
         <GitBranch className="w-12 h-12 text-bolt-elements-textTertiary mx-auto mb-4" />
         <p className="text-bolt-elements-textSecondary mb-4">No repositories found</p>
-        <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+        <Button variant="secondary" onClick={handleRefresh} disabled={isRefreshing}>
           <RefreshCw className={classNames('w-4 h-4 mr-2', { 'animate-spin': isRefreshing })} />
           Refresh
         </Button>
@@ -230,7 +230,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
         <Button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="flex items-center gap-2"
         >
@@ -312,7 +312,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
                 <Button
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                 >
                   Previous
@@ -323,7 +323,7 @@ export function GitLabRepositorySelector({ onClone, className }: GitLabRepositor
                 <Button
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                 >
                   Next

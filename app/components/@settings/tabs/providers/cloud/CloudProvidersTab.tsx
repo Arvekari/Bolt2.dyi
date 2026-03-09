@@ -11,12 +11,21 @@ import { providerBaseUrlEnvKeys } from '~/utils/constants';
 import Cookies from 'js-cookie';
 import { syncServerPersistence } from '~/lib/persistence/serverPersistence.client';
 import { getApiKeysFromCookies } from '~/components/chat/APIKeyManager';
-import { SiAmazon, SiGoogle, SiGithub, SiHuggingface, SiPerplexity, SiOpenai } from 'react-icons/si';
-import { BsRobot, BsCloud } from 'react-icons/bs';
-import { TbBrain, TbCloudComputing } from 'react-icons/tb';
-import { BiCodeBlock, BiChip } from 'react-icons/bi';
-import { FaCloud, FaBrain } from 'react-icons/fa';
-import type { IconType } from 'react-icons';
+import {
+  Binary,
+  Bot,
+  Brain,
+  Boxes,
+  Cloud,
+  Cpu,
+  Github,
+  Globe,
+  Search,
+  Sparkles,
+  Wind,
+  Workflow,
+  type LucideIcon,
+} from 'lucide-react';
 
 // Add type for provider names to ensure type safety
 type ProviderName =
@@ -37,22 +46,22 @@ type ProviderName =
   | 'XAI';
 
 // Update the PROVIDER_ICONS type to use the ProviderName type
-const PROVIDER_ICONS: Record<ProviderName, IconType> = {
-  AmazonBedrock: SiAmazon,
-  Anthropic: FaBrain,
-  Cohere: BiChip,
-  Deepseek: BiCodeBlock,
-  Github: SiGithub,
-  Google: SiGoogle,
-  Groq: BsCloud,
-  HuggingFace: SiHuggingface,
-  Hyperbolic: TbCloudComputing,
-  Mistral: TbBrain,
-  OpenAI: SiOpenai,
-  OpenRouter: FaCloud,
-  Perplexity: SiPerplexity,
-  Together: BsCloud,
-  XAI: BsRobot,
+const PROVIDER_ICONS: Record<ProviderName, LucideIcon> = {
+  AmazonBedrock: Cloud,
+  Anthropic: Brain,
+  Cohere: Boxes,
+  Deepseek: Binary,
+  Github,
+  Google: Globe,
+  Groq: Cloud,
+  HuggingFace: Bot,
+  Hyperbolic: Sparkles,
+  Mistral: Wind,
+  OpenAI: Bot,
+  OpenRouter: Workflow,
+  Perplexity: Search,
+  Together: Workflow,
+  XAI: Cpu,
 };
 
 // Update PROVIDER_DESCRIPTIONS to use the same type
@@ -185,7 +194,7 @@ const CloudProvidersTab = () => {
                 'text-purple-500',
               )}
             >
-              <TbCloudComputing className="w-5 h-5" />
+              <Cloud className="w-5 h-5" />
             </div>
             <div>
               <h4 className="text-md font-medium text-bolt-elements-textPrimary">Cloud Providers</h4>
@@ -240,7 +249,7 @@ const CloudProvidersTab = () => {
                   whileTap={{ scale: 0.9 }}
                 >
                   <div className={classNames('w-6 h-6', 'transition-transform duration-200', 'group-hover:rotate-12')}>
-                    {React.createElement(PROVIDER_ICONS[provider.name as ProviderName] || BsRobot, {
+                    {React.createElement(PROVIDER_ICONS[provider.name as ProviderName] || Bot, {
                       className: 'w-full h-full',
                       'aria-label': `${provider.name} logo`,
                     })}

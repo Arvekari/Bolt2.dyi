@@ -48,9 +48,6 @@ docs/instructions/Roadmap.md
 .cursorrules
 .qodo
 
-# local interruption-safe WIP notes (never commit)
-.ongoing-work.md
-
 # local n8n dev orchestrator state (never commit)
 .n8n-dev-workflows.json
 

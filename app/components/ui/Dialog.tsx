@@ -190,7 +190,7 @@ export interface ConfirmationDialogProps {
   /**
    * The variant of the confirm button
    */
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  variant?: 'primary' | 'danger' | 'secondary' | 'text' | 'default' | 'destructive' | 'outline' | 'ghost' | 'link';
 
   /**
    * Whether the confirm button is in a loading state
@@ -208,7 +208,7 @@ export function ConfirmationDialog({
   description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  variant = 'default',
+  variant = 'primary',
   isLoading = false,
   onConfirm,
 }: ConfirmationDialogProps) {
@@ -219,14 +219,16 @@ export function ConfirmationDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="mb-4">{description}</DialogDescription>
           <div className={`flex justify-end ${uiSpacingTokens.gap8}`}>
-            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button variant="secondary" onClick={onClose} disabled={isLoading}>
               {cancelLabel}
             </Button>
             <Button
               variant={variant}
               onClick={onConfirm}
               disabled={isLoading}
-              className={variant === 'destructive' ? uiColorRoleTokens.danger : uiColorRoleTokens.primary}
+              className={
+                variant === 'destructive' || variant === 'danger' ? uiColorRoleTokens.danger : uiColorRoleTokens.primary
+              }
             >
               {isLoading ? (
                 <>
@@ -398,7 +400,7 @@ export function SelectionDialog({
                 {selectedItems.length} of {items.length} selected
               </span>
               <Button
-                variant="ghost"
+                variant="text"
                 size="sm"
                 onClick={handleSelectAll}
                 className={`${uiTypographyTokens.bodyXs} ${uiSpacingTokens.px8} text-bolt-elements-textPrimary hover:text-bolt-elements-item-contentAccent hover:bg-bolt-elements-item-backgroundAccent bg-bolt-elements-bg-depth-2`}
@@ -431,7 +433,7 @@ export function SelectionDialog({
 
           <div className="flex justify-between mt-6">
             <Button
-              variant="outline"
+              variant="secondary"
               onClick={onClose}
               className="border-bolt-elements-borderColor text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive"
             >

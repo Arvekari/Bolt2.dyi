@@ -66,10 +66,10 @@ export class GitHubErrorBoundary extends Component<Props, State> {
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={this.handleRetry}>
+            <Button variant="secondary" size="sm" onClick={this.handleRetry}>
               Try Again
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+            <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
               Reload Page
             </Button>
           </div>

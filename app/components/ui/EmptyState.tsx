@@ -121,7 +121,7 @@ export function EmptyState({
             <motion.div {...buttonAnimation}>
               <Button
                 onClick={onAction}
-                variant="default"
+                variant="primary"
                 size={styles.buttonSize}
                 className={uiTypographyTokens.caption}
               >
@@ -132,7 +132,7 @@ export function EmptyState({
 
           {secondaryActionLabel && onSecondaryAction && (
             <motion.div {...buttonAnimation}>
-              <Button onClick={onSecondaryAction} variant="outline" size={styles.buttonSize}>
+              <Button onClick={onSecondaryAction} variant="secondary" size={styles.buttonSize}>
                 {secondaryActionLabel}
               </Button>
             </motion.div>

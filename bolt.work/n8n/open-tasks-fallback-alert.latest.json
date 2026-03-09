@@ -1,0 +1,11 @@
+{
+  "at": "2026-03-09T09:46:24.445Z",
+  "reason": "open_tasks_row_write_failed",
+  "details": {
+    "tableId": "WwKV0LTmzJj87mm0",
+    "tableName": "orchestration_tasks",
+    "warning": "unable to write rows to data table with known payload shapes"
+  },
+  "level": "critical",
+  "message": "Open tasks are not synced to n8n Data Tables; fallback file mode is active."
+}
