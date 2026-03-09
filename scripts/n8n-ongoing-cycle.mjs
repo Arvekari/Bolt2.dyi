@@ -360,24 +360,76 @@ function appendDoneObjectiveToChangelog(doneObjective, doneText) {
   }
 
   const lines = changelog.split(/\r?\n/);
+  const today = new Date().toISOString().slice(0, 10);
   const unreleasedStart = lines.findIndex((line) => /^##\s+\[Unreleased\]/i.test(line));
+  const todaysReleaseStart = lines.findIndex((line) =>
+    new RegExp(`^##\\s+\\[[^\\]]+\\]\\s+-\\s+${today.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*$`).test(line),
+  );
 
-  if (unreleasedStart === -1) {
-    return { updated: false, reason: 'unreleased-section-missing', entry };
+  let targetSectionStart = todaysReleaseStart;
+
+  if (targetSectionStart === -1) {
+    if (unreleasedStart === -1) {
+      return { updated: false, reason: 'target-section-missing', entry };
+    }
+
+    let unreleasedEnd = lines.length;
+
+    for (let index = unreleasedStart + 1; index < lines.length; index++) {
+      if (/^##\s+\[.+\]/.test(lines[index])) {
+        unreleasedEnd = index;
+        break;
+      }
+    }
+
+    const firstReleaseHeader = lines.find((line) => /^##\s+\[(\d+)\.(\d+)\.(\d+)\]\s+-\s+\d{4}-\d{2}-\d{2}\s*$/i.test(line));
+    let nextVersion = '0.1.0';
+
+    if (firstReleaseHeader) {
+      const versionMatch = firstReleaseHeader.match(/\[(\d+)\.(\d+)\.(\d+)\]/);
+
+      if (versionMatch) {
+        const major = Number(versionMatch[1]);
+        const minor = Number(versionMatch[2]);
+        const patch = Number(versionMatch[3]);
+        nextVersion = `${major}.${minor}.${patch + 1}`;
+      }
+    }
+
+    const releaseBlock = [
+      '',
+      `## [${nextVersion}] - ${today}`,
+      '',
+      '### Added',
+      '',
+      '- None.',
+      '',
+      '### Changed',
+      '',
+      '- None.',
+      '',
+      '### Fixed',
+      '',
+      '- None.',
+      '',
+    ];
+
+    lines.splice(unreleasedEnd, 0, ...releaseBlock);
+    targetSectionStart = unreleasedEnd + 1;
   }
 
-  let unreleasedEnd = lines.length;
+  let targetSectionEnd = lines.length;
 
-  for (let index = unreleasedStart + 1; index < lines.length; index++) {
+  for (let index = targetSectionStart + 1; index < lines.length; index++) {
     if (/^##\s+\[.+\]/.test(lines[index])) {
-      unreleasedEnd = index;
+      targetSectionEnd = index;
       break;
     }
   }
 
   let changedHeaderIndex = -1;
 
-  for (let index = unreleasedStart + 1; index < unreleasedEnd; index++) {
+  for (let index = targetSectionStart + 1; index < targetSectionEnd; index++) {
     if (/^###\s+Changed\s*$/i.test(lines[index])) {
       changedHeaderIndex = index;
       break;
@@ -385,16 +437,22 @@ function appendDoneObjectiveToChangelog(doneObjective, doneText) {
   }
 
   if (changedHeaderIndex === -1) {
-    const insertAt = unreleasedEnd;
+    const insertAt = targetSectionEnd;
     lines.splice(insertAt, 0, '', '### Changed', '', entry);
   } else {
     let insertAt = changedHeaderIndex + 1;
 
-    while (insertAt < unreleasedEnd && lines[insertAt].trim() === '') {
+    while (insertAt < targetSectionEnd && lines[insertAt].trim() === '') {
       insertAt += 1;
     }
 
-    while (insertAt < unreleasedEnd && /^-\s+/.test(lines[insertAt])) {
+    if (insertAt < targetSectionEnd && /^-\s+None\.\s*$/i.test(lines[insertAt])) {
+      lines.splice(insertAt, 1, entry);
+      writeFileSync(CHANGELOG_PATH, `${lines.join('\n')}\n`, 'utf8');
+      return { updated: true, reason: '', entry };
+    }
+
+    while (insertAt < targetSectionEnd && /^-\s+/.test(lines[insertAt])) {
       insertAt += 1;
     }
 
