@@ -24,6 +24,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Chat send control sizing/placement now uses scale-aligned values (`top-4`, `right-4`, `w-8`, `h-8`) and shared primary icon button styling.
 - Ongoing-work normalize/verify logic now detects the uncategorized section by marker text, supporting renamed headings while keeping enforcement active.
 - Ongoing-work normalization now writes a full pre-normalize backup snapshot before migration attempts.
+- Ongoing-work normalization and cycle completion now always clear stale `DONE` items from `## Prioritized Unfinished Work`, even when changelog insertion is skipped (for example when taskId is already logged).
 - Settings control panel information architecture now groups tiles into `General`, `Preferences`, `AI`, `Integrations`, `Security`, and `System` sections for improved scanability while preserving existing tab behavior.
 - Vercel dashboard information priority now follows an explicit hierarchy of `Metrics Row`, `Charts Section`, and `Detailed Table Section` for clearer scanning and project-level action flow.
 - Vercel dashboard top-journey accessibility hardening now adds keyboard-safe section toggling, stronger focus-visible states, semantic table caption/header scopes, and reduced-motion-aware animation/spinner behavior.

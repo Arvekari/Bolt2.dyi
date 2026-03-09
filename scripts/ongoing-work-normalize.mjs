@@ -61,41 +61,77 @@ function main() {
   const original = readFileSync(FILE_PATH, 'utf8');
   const fullSnapshotPath = writeFullSnapshotBackup(original);
   const lines = original.split(/\r?\n/);
+  const { lines: sanitizedLines, removed: prunedDone } = pruneDoneLinesFromPrioritized(lines);
 
-  const uncategorizedStart = lines.findIndex((line) => line.startsWith('## ') && line.includes(UNCATEGORIZED_MARKER));
+  const uncategorizedStart = sanitizedLines.findIndex((line) => line.startsWith('## ') && line.includes(UNCATEGORIZED_MARKER));
 
   if (uncategorizedStart === -1) {
-    console.log(JSON.stringify({ changed: false, reason: 'uncategorized-section-missing', fullSnapshotPath }, null, 2));
+    const nextContent = `${sanitizedLines.join('\n').replace(/\n+$/g, '')}\n`;
+
+    if (prunedDone > 0 && nextContent !== original) {
+      writeFileSync(FILE_PATH, nextContent, 'utf8');
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          changed: prunedDone > 0 && nextContent !== original,
+          migrated: 0,
+          prunedDone,
+          reason: 'uncategorized-section-missing',
+          fullSnapshotPath,
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
-  let uncategorizedEnd = lines.length;
+  let uncategorizedEnd = sanitizedLines.length;
 
-  for (let index = uncategorizedStart + 1; index < lines.length; index++) {
-    if (lines[index].startsWith('## ')) {
+  for (let index = uncategorizedStart + 1; index < sanitizedLines.length; index++) {
+    if (sanitizedLines[index].startsWith('## ')) {
       uncategorizedEnd = index;
       break;
     }
   }
 
-  const rawUncategorized = lines.slice(uncategorizedStart + 1, uncategorizedEnd);
+  const rawUncategorized = sanitizedLines.slice(uncategorizedStart + 1, uncategorizedEnd);
   const entries = rawUncategorized.map(parseUncategorizedEntry).filter(Boolean);
 
   if (entries.length === 0) {
-    console.log(JSON.stringify({ changed: false, migrated: 0, fullSnapshotPath }, null, 2));
+    const nextContent = `${sanitizedLines.join('\n').replace(/\n+$/g, '')}\n`;
+
+    if (prunedDone > 0 && nextContent !== original) {
+      writeFileSync(FILE_PATH, nextContent, 'utf8');
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          changed: prunedDone > 0 && nextContent !== original,
+          migrated: 0,
+          prunedDone,
+          fullSnapshotPath,
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
-  const p5Start = lines.findIndex((line) => line.startsWith(P5_HEADER_PREFIX));
+  const p5Start = sanitizedLines.findIndex((line) => line.startsWith(P5_HEADER_PREFIX));
 
   if (p5Start === -1) {
     throw new Error('P5 section not found in .ongoing-work.md');
   }
 
-  let p5End = lines.length;
+  let p5End = sanitizedLines.length;
 
-  for (let index = p5Start + 1; index < lines.length; index++) {
-    if (lines[index].startsWith('### ') || lines[index].startsWith('## ')) {
+  for (let index = p5Start + 1; index < sanitizedLines.length; index++) {
+    if (sanitizedLines[index].startsWith('### ') || sanitizedLines[index].startsWith('## ')) {
       p5End = index;
       break;
     }
@@ -104,12 +140,12 @@ function main() {
   const existingTaskIds = new Set();
   const existingTexts = new Set();
 
-  for (let index = 0; index < lines.length; index++) {
+  for (let index = 0; index < sanitizedLines.length; index++) {
     if (index > uncategorizedStart && index < uncategorizedEnd) {
       continue;
     }
 
-    const line = lines[index];
+    const line = sanitizedLines[index];
     const taskIdMatch = line.match(TASK_ID_PATTERN);
 
     if (taskIdMatch) {
@@ -154,11 +190,18 @@ function main() {
   }
 
   if (migrated.length === 0) {
+    const nextContent = `${sanitizedLines.join('\n').replace(/\n+$/g, '')}\n`;
+
+    if (prunedDone > 0 && nextContent !== original) {
+      writeFileSync(FILE_PATH, nextContent, 'utf8');
+    }
+
     console.log(
       JSON.stringify(
         {
-          changed: false,
+          changed: prunedDone > 0 && nextContent !== original,
           migrated: 0,
+          prunedDone,
           preservedUncategorized: true,
           reason: 'no-confident-migration',
           fullSnapshotPath,
@@ -172,7 +215,7 @@ function main() {
 
   const backupPath = writeUncategorizedBackup(rawUncategorized);
   const insertionPoint = p5End;
-  const withMigrated = [...lines.slice(0, insertionPoint), ...migrated, ...lines.slice(insertionPoint)];
+  const withMigrated = [...sanitizedLines.slice(0, insertionPoint), ...migrated, ...sanitizedLines.slice(insertionPoint)];
 
   const uncategorizedStart2 = withMigrated.findIndex(
     (line) => line.startsWith('## ') && line.includes(UNCATEGORIZED_MARKER),
@@ -204,6 +247,7 @@ function main() {
       {
         changed: nextContent !== original,
         migrated: migrated.length,
+        prunedDone,
         movedTo: 'P5',
         fullSnapshotPath,
         backupPath,
@@ -247,4 +291,33 @@ function writeFullSnapshotBackup(content) {
 
   writeFileSync(backupPath, content.endsWith('\n') ? content : `${content}\n`, 'utf8');
   return backupPath;
+}
+
+function pruneDoneLinesFromPrioritized(lines) {
+  let inPrioritized = false;
+  let removed = 0;
+  const kept = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = true;
+      kept.push(line);
+      continue;
+    }
+
+    if (inPrioritized && line.startsWith('## ') && !line.startsWith('## Prioritized Unfinished Work')) {
+      inPrioritized = false;
+      kept.push(line);
+      continue;
+    }
+
+    if (inPrioritized && /^\s*-\s*`DONE`\s+/i.test(line)) {
+      removed += 1;
+      continue;
+    }
+
+    kept.push(line);
+  }
+
+  return { lines: kept, removed };
 }

@@ -1908,9 +1908,7 @@ async function commandDone(args) {
 
   const markdownUpdate = markObjectiveDoneInMarkdown(currentObjective);
   const changelogUpdate = appendDoneObjectiveToChangelog(currentObjective, doneText);
-  const cleanupUpdate = changelogUpdate.updated
-    ? cleanupDoneObjectivesInMarkdown(currentObjective.taskId || '')
-    : { updated: false, reason: 'skipped-cleanup-when-changelog-not-updated' };
+  const cleanupUpdate = cleanupDoneObjectivesInMarkdown(currentObjective.taskId || '');
 
   state.completed.push({
     text: doneText,
