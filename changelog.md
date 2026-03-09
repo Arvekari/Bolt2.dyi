@@ -20,6 +20,20 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 - None.
 
+## [0.1.4] - 2026-03-09
+
+### Added
+
+- None.
+
+### Changed
+
+- None.
+
+### Fixed
+
+- Ongoing cycle changelog placement now prefers an existing same-day release section and auto-creates a new semantic patch release section when missing, preventing completed objectives from being left under `Unreleased` after commit/push release flow.
+
 ## [0.1.3] - 2026-03-09
 
 ### Added
