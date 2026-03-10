@@ -1,10 +1,42 @@
 {
-  "at": "2026-03-10T07:41:38.581Z",
+  "at": "2026-03-10T07:45:54.892Z",
   "reason": "open_tasks_row_write_failed",
   "details": {
     "tableId": "WwKV0LTmzJj87mm0",
     "tableName": "orchestration_tasks",
-    "warning": "unable to write rows to data table with known payload shapes"
+    "warning": "unable to write rows to data table with known payload shapes",
+    "attemptErrors": [
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert",
+        "payloadShape": "rows",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert failed (400): request/body must have required property 'filter'"
+      },
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert",
+        "payloadShape": "array",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert failed (400): request/body must be object"
+      },
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert",
+        "payloadShape": "data",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows/upsert failed (400): request/body must have required property 'filter'"
+      },
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows",
+        "payloadShape": "rows",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows failed (400): request/body must have required property 'data'"
+      },
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows",
+        "payloadShape": "array",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows failed (400): request/body must be object"
+      },
+      {
+        "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows",
+        "payloadShape": "data",
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows failed (400): SQLITE_FULL: database or disk is full"
+      }
+    ]
   },
   "level": "critical",
   "message": "Open tasks are not synced to n8n Data Tables; fallback file mode is active."

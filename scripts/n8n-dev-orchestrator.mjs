@@ -1413,6 +1413,7 @@ async function tryWriteOpenTaskRows(baseUrl, apiKey, tableId, rows) {
 
   const routes = [`/api/v1/data-tables/${encodeURIComponent(String(tableId))}/rows/upsert`, `/api/v1/data-tables/${encodeURIComponent(String(tableId))}/rows`];
 
+  const errors = [];
   for (const route of routes) {
     for (const payload of payloadCandidates) {
       try {
@@ -1427,8 +1428,13 @@ async function tryWriteOpenTaskRows(baseUrl, apiKey, tableId, rows) {
           payloadShape: Array.isArray(payload) ? 'array' : Object.keys(payload).join(','),
           response,
         };
-      } catch {
-        // try next shape/route
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        errors.push({
+          route,
+          payloadShape: Array.isArray(payload) ? 'array' : Object.keys(payload).join(','),
+          error: msg,
+        });
       }
     }
   }
@@ -1436,6 +1442,7 @@ async function tryWriteOpenTaskRows(baseUrl, apiKey, tableId, rows) {
   return {
     synced: false,
     warning: 'unable to write rows to data table with known payload shapes',
+    attemptErrors: errors,
   };
 }
 
@@ -1553,6 +1560,7 @@ async function syncOpenTasksTable(tableName = DEFAULT_OPEN_TASKS_TABLE_NAME) {
       tableId: resolvedTableId,
       tableName: resolvedTableName,
       warning: writeResult.warning || 'row write failed',
+      attemptErrors: writeResult.attemptErrors || [],
     });
     return {
       tableName: targetTable,
@@ -1563,6 +1571,7 @@ async function syncOpenTasksTable(tableName = DEFAULT_OPEN_TASKS_TABLE_NAME) {
       rowsSynced: 0,
       openObjectives: openObjectives.length,
       stats,
+      attemptErrors: writeResult.attemptErrors || [],
       ...persistedStats,
       ...fallback,
     };
