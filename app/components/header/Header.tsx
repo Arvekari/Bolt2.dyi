@@ -117,7 +117,11 @@ export function Header() {
         <ClientOnly>
           {() =>
             chat.started ? (
-              <div className="w-full max-w-3xl mx-auto">
+              <div className="w-full max-w-4xl mx-auto flex items-center gap-3">
+                <div className="hidden lg:flex items-center gap-2 rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 px-2.5 py-1 text-xs text-bolt-elements-textSecondary">
+                  <span className="i-ph:circles-four h-3.5 w-3.5" />
+                  Workspace
+                </div>
                 <ModelSelector
                   key={`${provider?.name || 'none'}:${availableModels.length}`}
                   model={model}

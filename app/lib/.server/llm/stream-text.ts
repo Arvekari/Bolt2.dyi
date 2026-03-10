@@ -368,12 +368,16 @@ ${customPromptBody}
   );
 
   const selectedSystemPrompt = chatMode === 'build' ? systemPrompt : discussPrompt();
+
+  // Create simplified messages for prompt policy (role + content only)
+  const policyMessages: any = processedMessages.map((message) => ({
+    role: message.role === 'assistant' ? 'assistant' : 'user',
+    content: String(message.content || ''),
+  }));
+
   const optimizedPrompt = applyPromptPolicy({
     system: selectedSystemPrompt,
-    messages: processedMessages.map((message) => ({
-      role: message.role === 'assistant' ? 'assistant' : 'user',
-      content: String(message.content || ''),
-    })),
+    messages: policyMessages,
     modelName: modelDetails.name,
     modelMeta: {
       maxTokenAllowed: modelDetails.maxTokenAllowed,
@@ -387,6 +391,34 @@ ${customPromptBody}
   const isResponsesModel = isOpenAIResponsesModel(provider.name, modelDetails.name);
   const tokenParams = isReasoning ? { maxCompletionTokens: safeMaxTokens } : { maxTokens: safeMaxTokens };
 
+  logger.info(`Preparing convertToModelMessages for ${optimizedPrompt.messages.length} messages`);
+  logger.debug(`Messages to convert: ${JSON.stringify(optimizedPrompt.messages.slice(0, 2))}`);
+
+  // Build messages with all required fields for convertToModelMessages
+  const messagesToConvert = optimizedPrompt.messages.map((msg: any, idx: number) => ({
+    id: `msg-${idx}`,
+    role: msg.role === 'user' ? 'user' : 'assistant',
+    content: msg.content,
+    parts: undefined, // Add parts field to satisfy Message interface
+  }));
+
+  let convertedMessages: any;
+
+  try {
+    logger.debug(`Message structure for conversion: ${JSON.stringify(messagesToConvert.slice(0, 1))}`);
+    convertedMessages = await convertToModelMessages(messagesToConvert as any);
+    logger.info(`Successfully converted ${convertedMessages.length} messages to model format`);
+  } catch (error) {
+    logger.warn(
+      `convertToModelMessages failed (using fallback):`,
+      error instanceof Error ? error.message : String(error),
+    );
+
+    // Fallback: if convertToModelMessages fails, use messages as-is
+    logger.info(`Using raw message format as fallback for streaming`);
+    convertedMessages = messagesToConvert;
+  }
+
   const streamParams = {
     model: provider.getModelInstance({
       model: modelDetails.name,
@@ -396,7 +428,7 @@ ${customPromptBody}
     }),
     system: optimizedPrompt.system,
     ...tokenParams,
-    messages: await convertToModelMessages(optimizedPrompt.messages as any),
+    messages: convertedMessages,
     ...filteredOptions,
 
     // Set temperature to 1 for reasoning models (required by OpenAI API)
@@ -422,5 +454,15 @@ ${customPromptBody}
     ),
   );
 
-  return await _streamText(streamParams);
+  try {
+    logger.info(`About to call _streamText for model "${modelDetails.name}"`);
+
+    const result = await _streamText(streamParams);
+    logger.info(`_streamText returned successfully for model "${modelDetails.name}"`);
+
+    return result;
+  } catch (error) {
+    logger.error(`_streamText failed for model "${modelDetails.name}":`, error);
+    throw error;
+  }
 }

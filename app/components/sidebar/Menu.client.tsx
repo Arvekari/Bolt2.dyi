@@ -338,8 +338,28 @@ export const Menu = () => {
           </div>
         ) : (
           <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
-            <div className="px-3 pt-3 pb-2 border-b border-bolt-elements-borderColor bg-bolt-elements-background-depth-2/70">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="px-3 pt-3 pb-3 border-b border-bolt-elements-borderColor bg-bolt-elements-background-depth-2/70 space-y-2">
+              <a
+                href="/"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent hover:brightness-110 transition-colors"
+              >
+                <span className="i-ph:plus-circle h-4 w-4" />
+                New chat
+              </a>
+              <button
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 transition-colors"
+                onClick={() => setActiveSection('chats')}
+              >
+                <span className="i-ph:magnifying-glass h-4 w-4" />
+                Search
+              </button>
+
+              <div className="h-px bg-bolt-elements-borderColor/70" />
+
+              <div className="space-y-1">
+                <div className="px-1 text-xs font-medium uppercase tracking-wide text-bolt-elements-textTertiary">
+                  Navigation
+                </div>
                 <button
                   className={classNames(
                     'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
@@ -389,34 +409,11 @@ export const Menu = () => {
                   Code
                 </button>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 transition-colors"
-                  onClick={() => setActiveSection('chats')}
-                >
-                  <span className="i-ph:magnifying-glass h-4 w-4" />
-                  Search
-                </button>
-                <button
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2 transition-colors"
-                  onClick={handleSettingsClick}
-                >
-                  <span className="i-ph:sliders-horizontal h-4 w-4" />
-                  Customize
-                </button>
-              </div>
             </div>
 
             {activeSection === 'chats' && (
               <div className="p-4 space-y-3">
                 <div className="flex gap-2">
-                  <a
-                    href="/"
-                    className="flex-1 flex gap-2 items-center bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent hover:brightness-110 rounded-lg px-4 py-2 transition-colors"
-                  >
-                    <span className="inline-block i-ph:plus-circle h-4 w-4" />
-                    <span className="text-sm font-medium">Start new chat</span>
-                  </a>
                   <button
                     onClick={toggleSelectionMode}
                     className={classNames(
@@ -448,8 +445,7 @@ export const Menu = () => {
             {activeSection === 'projects' && (
               <div className="p-4 space-y-3">
                 <div className="rounded-xl border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 p-3 text-sm text-bolt-elements-textSecondary">
-                  Projects support shared ownership. Invite users by email in project settings; invite flow and
-                  membership validation are handled in persistence.
+                  Projects is a first-class workspace area for collaboration, ownership, and shared conversations.
                 </div>
                 <CollabPanel />
               </div>

@@ -34,6 +34,7 @@ interface ControlPanelProps {
 }
 
 type SettingsSection = 'General' | 'Preferences' | 'AI' | 'Integrations' | 'Security' | 'System';
+type SettingsViewMode = 'overview' | 'detail';
 
 const SECTION_ORDER: SettingsSection[] = ['General', 'Preferences', 'AI', 'Integrations', 'Security', 'System'];
 
@@ -54,10 +55,52 @@ const TAB_SECTION_MAP: Partial<Record<TabType, SettingsSection>> = {
   'event-logs': 'System',
 };
 
+const SECTION_META: Record<
+  SettingsSection,
+  {
+    icon: string;
+    title: string;
+    description: string;
+  }
+> = {
+  General: {
+    icon: 'i-ph:user-gear',
+    title: 'General',
+    description: 'Profile, account identity, and core workspace behavior.',
+  },
+  Preferences: {
+    icon: 'i-ph:sliders-horizontal',
+    title: 'Preferences',
+    description: 'Notifications, feature behavior, and personal defaults.',
+  },
+  AI: {
+    icon: 'i-ph:brain',
+    title: 'AI',
+    description: 'Model providers, local runtimes, and MCP configuration.',
+  },
+  Integrations: {
+    icon: 'i-ph:plugs-connected',
+    title: 'Integrations',
+    description: 'Git, Supabase, deployment, and external service links.',
+  },
+  Security: {
+    icon: 'i-ph:shield-check',
+    title: 'Security',
+    description: 'Authentication safeguards and access related controls.',
+  },
+  System: {
+    icon: 'i-ph:database',
+    title: 'System',
+    description: 'Data tools, logs, and environment-level maintenance.',
+  },
+};
+
 export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   // State - Start with 'profile' as default active tab
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [viewMode, setViewMode] = useState<SettingsViewMode>('overview');
   const [loadingTab, setLoadingTab] = useState<TabType | null>(null);
+  const [navCollapsed, setNavCollapsed] = useState(false);
 
   // Store values
   const tabConfiguration = useStore(tabConfigurationStore);
@@ -120,11 +163,27 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   // Reset to default view when modal opens
   useEffect(() => {
     if (open) {
-      // When opening, set to profile as default
+      // When opening, show category-grid first and select profile as fallback detail tab.
       setActiveTab('profile');
+      setViewMode('overview');
       setLoadingTab(null);
+      setNavCollapsed(false);
     }
   }, [open]);
+
+  const firstTabBySection = useMemo(() => {
+    const result: Partial<Record<SettingsSection, TabType>> = {};
+
+    for (const section of SECTION_ORDER) {
+      const sectionTabs = sectionedTabs[section] || [];
+
+      if (sectionTabs.length > 0) {
+        result[section] = sectionTabs[0].id as TabType;
+      }
+    }
+
+    return result;
+  }, [sectionedTabs]);
 
   // Handle closing - close button and ESC key
   const handleClose = () => {
@@ -204,6 +263,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   };
 
   const handleTabClick = (tabId: TabType) => {
+    setViewMode('detail');
     setLoadingTab(tabId);
     setActiveTab(tabId);
 
@@ -228,6 +288,11 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
     setTimeout(() => setLoadingTab(null), 300);
   };
 
+  const handleSectionClick = (section: SettingsSection) => {
+    const tabId = firstTabBySection[section] || 'profile';
+    handleTabClick(tabId);
+  };
+
   // Don't render anything if not open
   if (!open) {
     return null;
@@ -235,30 +300,16 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 dark:bg-black/80 backdrop-blur-sm z-[100] transition-opacity duration-200"
-        onClick={handleClose}
-      />
-
-      {/* Full-screen Settings Panel */}
-      <div
-        className={classNames(
-          'fixed inset-0 z-[101] flex items-center justify-center p-4',
-          'animate-in fade-in duration-200',
-        )}
-      >
+      {/* Full-screen Settings Workspace */}
+      <div className={classNames('fixed inset-0 z-[101] animate-in fade-in duration-200')}>
         <div
           className={classNames(
-            'w-full max-w-[1400px] h-[90vh]',
+            'w-full h-full',
             'bg-bolt-elements-background-depth-1',
-            'rounded-2xl shadow-2xl',
-            'border border-bolt-elements-borderColor',
             'flex flex-col overflow-hidden',
             'relative',
             'transform transition-all duration-200 ease-out',
           )}
-          onClick={(e) => e.stopPropagation()}
         >
           <div className="absolute inset-0 overflow-hidden rounded-2xl">
             <BackgroundRays />
@@ -273,10 +324,10 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
 
               <button
                 onClick={handleClose}
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-purple-500/10 dark:hover:bg-purple-500/20 group transition-all duration-200"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent hover:bg-bolt-elements-background-depth-3 group transition-all duration-200"
                 aria-label="Close settings"
               >
-                <div className="i-ph:x w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-purple-500 transition-colors" />
+                <div className="i-ph:x w-4 h-4 text-bolt-elements-textSecondary group-hover:text-bolt-elements-textPrimary transition-colors" />
               </button>
             </div>
 
@@ -288,6 +339,8 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   activeTab={activeTab}
                   sectionedTabs={sectionedTabs}
                   sectionOrder={SECTION_ORDER}
+                  collapsed={navCollapsed}
+                  onToggleCollapse={() => setNavCollapsed((value) => !value)}
                   getTabUpdateStatus={getTabUpdateStatus}
                   onTabClick={handleTabClick}
                 />
@@ -304,10 +357,20 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   </label>
                   <select
                     id="settings-mobile-section"
-                    value={activeTab}
-                    onChange={(event) => handleTabClick(event.target.value as TabType)}
-                    className="w-full rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                    value={viewMode === 'overview' ? '__overview__' : activeTab}
+                    onChange={(event) => {
+                      if (event.target.value === '__overview__') {
+                        setViewMode('overview');
+                        setLoadingTab(null);
+
+                        return;
+                      }
+
+                      handleTabClick(event.target.value as TabType);
+                    }}
+                    className="w-full rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColorActive"
                   >
+                    <option value="__overview__">All Categories</option>
                     {visibleTabs.map((tab) => (
                       <option key={tab.id} value={tab.id}>
                         {tab.label || tab.id}
@@ -316,15 +379,91 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   </select>
                 </div>
 
-                <SettingsContentPanel title={TAB_LABELS[activeTab]} description={TAB_DESCRIPTIONS[activeTab]}>
-                  {loadingTab === activeTab ? (
-                    <div className="flex items-center justify-center h-64">
-                      <div className="i-svg-spinners:90-ring-with-bg w-8 h-8 text-purple-500" />
+                {viewMode === 'overview' ? (
+                  <SettingsContentPanel
+                    title="Control Panel"
+                    description="Choose a settings category to open focused controls in the workspace."
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+                      {SECTION_ORDER.map((section) => {
+                        const sectionTabs = sectionedTabs[section] || [];
+                        const tabCount = sectionTabs.length;
+
+                        return (
+                          <button
+                            key={section}
+                            type="button"
+                            onClick={() => handleSectionClick(section)}
+                            className={classNames(
+                              'text-left rounded-xl border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2',
+                              'p-4 md:p-5 transition-all duration-200',
+                              'hover:border-bolt-elements-borderColorActive hover:bg-bolt-elements-background-depth-3 hover:-translate-y-0.5',
+                              'focus:outline-none focus:ring-2 focus:ring-bolt-elements-borderColorActive focus:ring-offset-0',
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div
+                                className={classNames(
+                                  'h-10 w-10 rounded-lg flex items-center justify-center',
+                                  'bg-bolt-elements-item-backgroundAccent text-bolt-elements-item-contentAccent',
+                                )}
+                              >
+                                <span className={classNames(SECTION_META[section].icon, 'h-5 w-5')} />
+                              </div>
+                              <span className="text-xs font-medium text-bolt-elements-textSecondary">
+                                {tabCount} tabs
+                              </span>
+                            </div>
+
+                            <h3 className="mt-4 text-base md:text-lg font-semibold text-bolt-elements-textPrimary">
+                              {SECTION_META[section].title}
+                            </h3>
+                            <p className="mt-2 text-sm text-bolt-elements-textSecondary leading-relaxed">
+                              {SECTION_META[section].description}
+                            </p>
+
+                            <div className="mt-4 flex flex-wrap gap-1.5">
+                              {sectionTabs.slice(0, 3).map((tab) => (
+                                <span
+                                  key={tab.id}
+                                  className="inline-flex items-center rounded-md bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textSecondary"
+                                >
+                                  {tab.label || tab.id}
+                                </span>
+                              ))}
+                              {tabCount > 3 ? (
+                                <span className="inline-flex items-center rounded-md bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textSecondary">
+                                  +{tabCount - 3} more
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    getTabComponent(activeTab)
-                  )}
-                </SettingsContentPanel>
+                  </SettingsContentPanel>
+                ) : (
+                  <SettingsContentPanel title={TAB_LABELS[activeTab]} description={TAB_DESCRIPTIONS[activeTab]}>
+                    <div className="mb-4 md:mb-5">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('overview')}
+                        className="inline-flex items-center gap-2 rounded-md border border-bolt-elements-borderColor px-3 py-1.5 text-sm text-bolt-elements-textSecondary hover:bg-bolt-elements-background-depth-2"
+                      >
+                        <span className="i-ph:arrow-left h-4 w-4" />
+                        Back to Categories
+                      </button>
+                    </div>
+
+                    {loadingTab === activeTab ? (
+                      <div className="flex items-center justify-center h-64">
+                        <div className="i-svg-spinners:90-ring-with-bg w-8 h-8 text-purple-500" />
+                      </div>
+                    ) : (
+                      getTabComponent(activeTab)
+                    )}
+                  </SettingsContentPanel>
+                )}
               </div>
             </div>
           </div>

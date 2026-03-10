@@ -100,12 +100,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             return;
           }
 
+          const safeSteps: Array<{ id: string; label: string; state: string }> = Array.isArray(
+            (currentRun as any).steps,
+          )
+            ? (currentRun as any).steps
+            : [];
+
           dataStream.writeData({
             type: 'agentRun',
             run: {
               runId: currentRun.runId,
               state: currentRun.state,
-              steps: currentRun.steps.map((step) => ({
+              steps: safeSteps.map((step) => ({
                 id: step.id,
                 label: step.label,
                 state: step.state,
@@ -331,7 +337,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               customPrompt,
             });
 
-            void (async () => {
+            await (async () => {
               for await (const part of result.fullStream) {
                 writeStreamPartToDataStream(part, dataStream);
 
@@ -373,7 +379,7 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           customPrompt,
         });
 
-        (async () => {
+        await (async () => {
           for await (const part of result.fullStream) {
             writeStreamPartToDataStream(part, dataStream);
             streamRecovery.updateActivity();

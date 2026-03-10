@@ -121,6 +121,7 @@ export const ChatImpl = memo(
     const [selectedElement, setSelectedElement] = useState<ElementInfo | null>(null);
     const [isStalledStream, setIsStalledStream] = useState(false);
     const streamStartedAtRef = useRef<number | null>(null);
+    const lastChunkReceivedAtRef = useRef<number | null>(null);
     const mcpSettings = useMCPStore((state) => state.settings);
     const collab = useStore(collabStore);
 
@@ -225,6 +226,11 @@ export const ChatImpl = memo(
         return;
       }
 
+      // Track when chunks arrive during streaming
+      if (isLoading || fakeLoading) {
+        lastChunkReceivedAtRef.current = Date.now();
+      }
+
       processSampledMessages({
         messages,
         initialMessages,
@@ -277,6 +283,7 @@ export const ChatImpl = memo(
 
       if (!currentlyStreaming) {
         streamStartedAtRef.current = null;
+        lastChunkReceivedAtRef.current = null;
 
         if (isStalledStream) {
           setIsStalledStream(false);
@@ -284,10 +291,18 @@ export const ChatImpl = memo(
       } else {
         if (!streamStartedAtRef.current) {
           streamStartedAtRef.current = Date.now();
+          lastChunkReceivedAtRef.current = Date.now();
         }
 
         stallTimer = setTimeout(() => {
-          if (isStreamingStalled(streamStartedAtRef.current, Date.now(), DEFAULT_STREAM_STALL_TIMEOUT_MS)) {
+          if (
+            isStreamingStalled(
+              streamStartedAtRef.current,
+              lastChunkReceivedAtRef.current,
+              Date.now(),
+              DEFAULT_STREAM_STALL_TIMEOUT_MS,
+            )
+          ) {
             logger.warn('Detected stalled chat streaming state; auto-aborting stream guard path triggered');
             stop();
             setFakeLoading(false);

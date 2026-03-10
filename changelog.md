@@ -12,6 +12,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 - Settings Control Panel UX redesign task (P1): category-grid card layout with collapsible left navigation sidebar (expandable to full width with labels + icons, collapses to icon-only compact mode with tooltips). Six category cards: General, Preferences, AI, Integrations, Security, System.
 - Chat window layout review (P2): user reports current chat main window doesn't match design expectations; pending detailed feedback on layout structure, spacing, and visual hierarchy. Also includes collapsible sidebar to icon-only mode matching Settings behavior.
+- Runtime parser coverage for build-oriented AI responses in `unit-tests/lib/runtime/runtime.enhanced-message-parser.test.ts`, including automatic `file` and `shell` boltAction interpretation from raw code blocks.
 
 ### Changed
 
@@ -28,6 +29,12 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Persistence layer (SQLite + PostgREST) enforces user-scoped data isolation via `hasCollabProjectAccess` guards and JOIN-based filtering on collab operations.
 - Artifact model foundation added with full CRUD support (create/read/update/delete) for reusable modules/components/snippets/assets with project/user ownership scope, visibility controls (private/project/public), and backend-agnostic persistence abstraction. New API route `/api/collab/artifacts` with 14 passing unit tests.
 - Settings control panel was refactored to a modern two-panel architecture with persistent desktop navigation, structured content panel hierarchy, and mobile category selector fallback for responsive behavior.
+- Settings control panel now opens in a category-grid workspace (General, Preferences, AI, Integrations, Security, System) and supports explicit category-to-tab transitions while keeping collapsible desktop nav and mobile `All Categories` fallback.
+- LLM response streaming timeout logic now tracks 'time since last chunk received' instead of 'total elapsed time since stream start'. Timeout reduced from 120 seconds absolute to 45 seconds of no data, allowing long-running responses to complete successfully. Aligns client-side timeout with server-side StreamRecoveryManager timeout.
+
+### Fixed
+
+- **CRITICAL P0**: Chat LLM response timeout that blocked core functionality. Responses longer than 120 seconds would timeout even with continuous data flow from the model. Now properly handles multi-minute responses by monitoring data arrival rather than absolute elapsed time.
 - Comprehensive structure cleanup and validation: full typecheck, lint, and unit-test-changed validation passes; orchestration synchronization ensures all discovered issues tracked as P0 with stable taskId markers; fallback JSON payload tracking for n8n open-tasks pending Data Table row-write restoration.
 - N8N orchestrator diagnostic logging enhanced: error tracking for Data Table row-write failures; root cause identified as SQLITE_FULL (n8n dev instance disk at capacity); n8n disk cleanup completed, fallback JSON export deactivated, native API Data Table writes restored and verified operational.
 

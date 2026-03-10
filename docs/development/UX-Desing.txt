@@ -1,0 +1,416 @@
+Refactor Correction Specification
+Purpose
+
+The current implementation does not match the requested UX.
+
+This document describes:
+
+what the current implementation looks like
+
+what is wrong in it
+
+what must be changed
+
+what the final target layout should be
+
+This is a correction document for the current implementation.
+
+1. Current State: Settings View
+What exists now
+
+The current Settings implementation is a Control Panel style modal/dashboard with many tiles/cards such as:
+
+Profile
+
+Settings
+
+Features
+
+Notifications
+
+Cloud Providers
+
+Local Providers
+
+MCP Servers
+
+GitHub
+
+GitLab
+
+Netlify
+
+Vercel
+
+Supabase
+
+It looks like a grid of large clickable cards inside a popup/panel.
+
+Why this is wrong
+
+This is not the requested settings UX.
+
+The requested settings UX was:
+
+a main-frame settings workspace
+
+a persistent left-side settings navigation
+
+a main content panel on the right
+
+category-based settings browsing
+
+The current tile-based control panel is wrong because:
+
+it behaves like a launcher/dashboard, not like a settings workspace
+
+it forces the user to navigate through cards instead of structured settings categories
+
+it does not provide a stable left-side settings navigation
+
+it does not look like a modern settings page similar to premium SaaS/desktop apps
+
+it is visually disconnected from the requested structure
+
+2. What Settings Must Become
+Required target structure
+
+The Settings page must be refactored from:
+
+Control Panel modal with cards
+
+into:
+
+Settings Workspace
+├ Left Settings Navigation
+└ Main Settings Content Area
+Required layout
+Left column
+
+Persistent settings navigation, always visible while the user is inside Settings.
+
+Example:
+
+Settings
+├ General
+├ Account
+├ Profile
+├ Appearance
+├ AI Providers
+├ Integrations
+├ Projects
+├ Privacy
+└ Advanced
+
+This is a navigation column, not a card launcher.
+
+Right column
+
+Main settings content area.
+
+When the user clicks a category in the left navigation, the corresponding settings content opens in the right panel.
+
+Example:
+
+Main Content
+├ Page title
+├ Description
+├ Grouped settings sections
+├ Inputs / toggles / selectors
+└ Save / action area
+Important correction
+
+The current tile/card overview must be removed as the default settings experience.
+
+Large tiles can maybe exist only as optional internal shortcuts, but not as the main settings UX.
+
+The main settings experience must be:
+
+structured
+
+category-based
+
+left-nav + right-content
+
+modern
+
+sleek
+
+scalable
+
+3. Current State: Main Window
+What exists now
+
+The current main window still contains:
+
+Left sidebar
+
+old style chat sidebar
+
+Start new chat
+
+Search chats
+
+Shared Collaboration box
+
+No previous conversations text
+
+Top-right model area
+
+provider selector
+
+model selector
+
+API key status text:
+
+OpenAI API Key: Set via UI
+
+Main chat area
+
+mostly empty
+
+message input floating in lower-right area
+
+timeout notification shown as a floating box
+
+Why this is wrong
+
+This still does not match the requested UX.
+
+The requested changes were:
+
+make the left menu modern and navigation-based
+
+move model/provider logic into a cleaner top bar pattern
+
+remove API key management/status from the main chat area
+
+turn the sidebar into a modern app navigation instead of old chat-only side panel
+
+structure the layout like a modern AI workspace
+
+The current implementation still feels like:
+
+old bolt sidebar + small patches
+
+top-right temporary model controls
+
+API key info leaking into main UI
+
+no real modern app navigation
+
+4. What Must Change in the Main Window
+A. Left sidebar must be redesigned
+
+The current sidebar is still the wrong concept.
+
+It must no longer be a narrow legacy chat sidebar with a small collaboration box.
+
+It must become a modern app navigation sidebar.
+
+Target structure
+Sidebar
+├ New chat
+├ Search
+├ Navigation
+│  ├ Chats
+│  ├ Projects
+│  ├ Artifacts
+│  ├ Code
+├ Recents
+│  ├ item
+│  ├ item
+└ Bottom area
+   ├ Settings
+   └ User profile
+B. Shared Collaboration box must not remain as a random standalone block
+
+The current “Shared Collaboration” section in the sidebar is not the correct UX.
+
+Project and collaboration functionality should belong under:
+
+Projects
+
+in the navigation structure.
+
+So this must change:
+
+Wrong
+Shared Collaboration
+[New project name]
+[Create]
+[Select shared project]
+Correct direction
+
+Projects become their own navigation area/view.
+
+Project-related actions should happen inside the Projects section, not as a small inline form stuck into the chat sidebar.
+
+C. API key status must be removed from the main window
+
+This text must not appear in the main chat UI:
+
+OpenAI API Key: Set via UI
+
+That belongs to Settings, not to the main chat screen.
+
+Required behavior
+
+API keys are configured only inside Settings
+
+the main UI should not show API key state text
+
+the main UI may show only provider/model selectors if needed
+
+even better: provider/model selectors should be part of a clean top workspace bar
+
+D. Top bar must be cleaned up
+
+The provider/model area currently feels like a temporary top-right control strip.
+
+It needs to become a deliberate top workspace bar.
+
+Target direction
+Top Workspace Bar
+├ App/workspace context
+├ Provider selector
+├ Model selector
+└ User or workspace controls
+
+It should feel integrated into the app layout, not like floating controls in a corner.
+
+E. Chat composer placement must be improved
+
+The input area currently appears detached in the lower-right corner.
+
+This makes the UI feel unbalanced.
+
+The composer should feel intentionally placed within the chat workspace.
+
+Required direction
+
+composer aligned with the main chat area
+
+not floating like a separate box
+
+consistent width and positioning
+
+feels like part of the conversation layout
+
+5. Desired Final Settings UX
+Final target
+
+When the user opens Settings, the experience should feel like:
+
+a dedicated application settings workspace
+
+not a popup dashboard
+
+not a tile launcher
+
+not a control panel home screen
+
+Final structure
+Settings
+├ Left navigation
+│  ├ General
+│  ├ Profile
+│  ├ AI Providers
+│  ├ Integrations
+│  ├ Projects
+│  └ etc
+└ Right content panel
+   ├ section title
+   ├ description
+   ├ grouped settings
+   └ actions
+6. Desired Final Main App UX
+Final target
+
+When the user is in the main application, it should feel like a modern AI workspace.
+
+Final structure
+App Layout
+├ Left navigation sidebar
+│  ├ New chat
+│  ├ Search
+│  ├ Chats
+│  ├ Projects
+│  ├ Artifacts
+│  ├ Code
+│  └ Bottom: Settings / Profile
+├ Top workspace bar
+│  ├ provider selector
+│  ├ model selector
+│  └ other contextual controls
+└ Main content area
+   ├ conversation area
+   └ aligned chat composer
+7. Exact Correction Summary
+Settings page: required corrections
+Remove
+
+Control Panel style tile dashboard as the default settings page
+
+tile-grid-first structure
+
+Replace with
+
+persistent left settings menu
+
+right-side structured content panel
+
+grouped settings sections
+
+Main window: required corrections
+Remove / change
+
+old style chat sidebar concept
+
+random Shared Collaboration box in sidebar
+
+API key status text from main UI
+
+detached composer positioning
+
+top-right temporary-feeling selector layout
+
+Replace with
+
+modern navigation sidebar
+
+Projects as a real navigation section
+
+Artifacts as a real navigation section
+
+top workspace bar
+
+cleaner integrated chat layout
+
+8. Acceptance Criteria
+
+The correction is complete only when:
+
+Settings
+
+Settings is no longer a card-based control panel home
+
+Settings has left navigation + right content
+
+Settings feels like a modern structured workspace
+
+Main app
+
+Sidebar is modern navigation, not old chat sidebar
+
+Projects is a proper section, not an inline sidebar form
+
+API key text is removed from the main chat UI
+
+top bar is integrated and intentional
+
+composer is positioned as part of the main workspace
+
+9. One-line Summary for Copilot
+
+The current implementation solved this as a tile-based control panel and a patched old sidebar, but the requested UX is a modern app layout: Settings must become a left-nav + right-content workspace, and the main app must become a modern navigation-based AI workspace with Projects and Artifacts as real sections, not inline sidebar widgets.

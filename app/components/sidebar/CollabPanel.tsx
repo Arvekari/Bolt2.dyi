@@ -21,7 +21,7 @@ export function CollabPanel() {
   const [branches, setBranches] = useState<Branch[]>([]);
 
   const [newProjectName, setNewProjectName] = useState('');
-  const [shareUsername, setShareUsername] = useState('');
+  const [shareEmail, setShareEmail] = useState('');
   const [shareRole, setShareRole] = useState<'editor' | 'viewer'>('editor');
   const [newConversationTitle, setNewConversationTitle] = useState('');
   const [mergeBranchId, setMergeBranchId] = useState('');
@@ -122,9 +122,9 @@ export function CollabPanel() {
   };
 
   const shareProject = async () => {
-    const username = shareUsername.trim().toLowerCase();
+    const email = shareEmail.trim().toLowerCase();
 
-    if (!collab.selectedProjectId || !username) {
+    if (!collab.selectedProjectId || !email) {
       return;
     }
 
@@ -134,7 +134,7 @@ export function CollabPanel() {
       body: JSON.stringify({
         intent: 'share',
         projectId: collab.selectedProjectId,
-        username,
+        email,
         role: shareRole,
       }),
     });
@@ -146,7 +146,7 @@ export function CollabPanel() {
       return;
     }
 
-    setShareUsername('');
+    setShareEmail('');
     toast.success('Project shared');
   };
 
@@ -211,7 +211,7 @@ export function CollabPanel() {
 
   const mergeCandidates = branches.filter((branch) => !branch.isMain && branch.status === 'active');
   const canCreateProject = newProjectName.trim().length > 0;
-  const canShareProject = Boolean(collab.selectedProjectId && shareUsername.trim().length > 0);
+  const canShareProject = Boolean(collab.selectedProjectId && shareEmail.trim().length > 0);
   const canCreateConversation = Boolean(collab.selectedProjectId);
 
   const fieldClassName =
@@ -220,8 +220,8 @@ export function CollabPanel() {
     'w-full rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive';
 
   return (
-    <div className="mx-4 mb-3 space-y-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 p-3">
-      <div className="text-xs font-semibold text-bolt-elements-textSecondary">Shared Collaboration</div>
+    <div className="space-y-2 rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-2 p-3">
+      <div className="text-xs font-semibold text-bolt-elements-textSecondary">Project Collaboration</div>
 
       <div className="flex gap-2">
         <input
@@ -257,9 +257,9 @@ export function CollabPanel() {
         <div className="flex gap-2">
           <input
             className={fieldClassName}
-            value={shareUsername}
-            onChange={(event) => setShareUsername(event.target.value)}
-            placeholder="username to share"
+            value={shareEmail}
+            onChange={(event) => setShareEmail(event.target.value)}
+            placeholder="email to share"
           />
           <select
             className="rounded-md border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 px-2 py-1 text-xs text-bolt-elements-textPrimary focus:outline-none focus:ring-1 focus:ring-bolt-elements-borderColorActive"

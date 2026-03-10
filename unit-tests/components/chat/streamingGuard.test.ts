@@ -6,23 +6,35 @@ import {
 } from '~/components/chat/streamingGuard';
 
 describe('streaming guard', () => {
-  it('marks stream as stalled after timeout window', () => {
+  it('marks stream as stalled after timeout window since last chunk', () => {
     const startedAt = 1_000;
-    const now = startedAt + DEFAULT_STREAM_STALL_TIMEOUT_MS;
+    const lastChunkAt = startedAt + 5_000; // Last chunk at 5 seconds
+    const now = lastChunkAt + DEFAULT_STREAM_STALL_TIMEOUT_MS; // No new chunks for 45+ seconds
 
-    expect(isStreamingStalled(startedAt, now, DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(true);
+    expect(isStreamingStalled(startedAt, lastChunkAt, now, DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(true);
   });
 
-  it('does not mark stream as stalled before timeout window', () => {
+  it('does not mark stream as stalled before timeout window since last chunk', () => {
     const startedAt = 1_000;
-    const now = startedAt + DEFAULT_STREAM_STALL_TIMEOUT_MS - 1;
+    const lastChunkAt = startedAt + 5_000;
+    const now = lastChunkAt + DEFAULT_STREAM_STALL_TIMEOUT_MS - 1; // Just before timeout
 
-    expect(isStreamingStalled(startedAt, now, DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
+    expect(isStreamingStalled(startedAt, lastChunkAt, now, DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
+  });
+
+  it('allows long responses if chunks keep arriving', () => {
+    const startedAt = 1_000;
+    const longResponseTime = startedAt + 200_000; // 200 seconds since stream started
+    const lastChunkAt = longResponseTime - 1_000; // But chunk arrived just 1 second ago
+
+    expect(isStreamingStalled(startedAt, lastChunkAt, longResponseTime, DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(
+      false,
+    );
   });
 
   it('returns not stalled when stream has not started', () => {
-    expect(isStreamingStalled(null, Date.now(), DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
-    expect(isStreamingStalled(0, Date.now(), DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
+    expect(isStreamingStalled(null, null, Date.now(), DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
+    expect(isStreamingStalled(0, null, Date.now(), DEFAULT_STREAM_STALL_TIMEOUT_MS)).toBe(false);
   });
 
   it('suppresses streaming UI when stalled even if loading flags are true', () => {
