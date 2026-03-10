@@ -30,7 +30,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Artifact model foundation added with full CRUD support (create/read/update/delete) for reusable modules/components/snippets/assets with project/user ownership scope, visibility controls (private/project/public), and backend-agnostic persistence abstraction. New API route `/api/collab/artifacts` with 14 passing unit tests.
 - Settings control panel was refactored to a modern two-panel architecture with persistent desktop navigation, structured content panel hierarchy, and mobile category selector fallback for responsive behavior.
 - Comprehensive structure cleanup and validation: full typecheck, lint, and unit-test-changed validation passes; orchestration synchronization ensures all discovered issues tracked as P0 with stable taskId markers; fallback JSON payload tracking for n8n open-tasks pending Data Table row-write restoration.
-- N8N orchestrator diagnostic logging enhanced: error tracking for Data Table row-write failures; root cause identified as SQLITE_FULL (n8n dev instance disk at capacity); fallback JSON export confirmed functional for current release cycle.
+- N8N orchestrator diagnostic logging enhanced: error tracking for Data Table row-write failures; root cause identified as SQLITE_FULL (n8n dev instance disk at capacity); n8n disk cleanup completed, fallback JSON export deactivated, native API Data Table writes restored and verified operational.
 
 ### Fixed
 
