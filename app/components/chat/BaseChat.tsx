@@ -402,7 +402,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         data-chat-visible={showChat}
       >
         <ClientOnly>{() => <Menu />}</ClientOnly>
-        <div className="flex flex-col lg:flex-row overflow-y-auto flex-1 h-full min-w-0 bg-bolt-elements-background-depth-1">
+        <div className="flex flex-col lg:flex-row overflow-hidden flex-1 h-full min-w-0 bg-bolt-elements-background-depth-1">
           <div
             className={classNames(
               styles.Chat,

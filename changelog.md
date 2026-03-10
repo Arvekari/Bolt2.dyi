@@ -11,7 +11,6 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Added
 
 - Settings Control Panel UX redesign task (P1): category-grid card layout with collapsible left navigation sidebar (expandable to full width with labels + icons, collapses to icon-only compact mode with tooltips). Six category cards: General, Preferences, AI, Integrations, Security, System.
-- Chat window layout review (P2): user reports current chat main window doesn't match design expectations; pending detailed feedback on layout structure, spacing, and visual hierarchy. Also includes collapsible sidebar to icon-only mode matching Settings behavior.
 - Runtime parser coverage for build-oriented AI responses in `unit-tests/lib/runtime/runtime.enhanced-message-parser.test.ts`, including automatic `file` and `shell` boltAction interpretation from raw code blocks.
 - Baseline unit test scaffold for CodeMirror theme module in `unit-tests/components/editor/codemirror/cm-theme.test.ts`.
 
@@ -36,6 +35,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Fixed
 
 - **CRITICAL P0**: Chat LLM response timeout that blocked core functionality. Responses longer than 120 seconds would timeout even with continuous data flow from the model. Now properly handles multi-minute responses by monitoring data arrival rather than absolute elapsed time.
+- **P2 Chat Window Layout**: Fixed flexbox layout issue where middle wrapper had overflow-y-auto causing StickToBottom scrolling problems. Changed to overflow-hidden in BaseChat component to restore proper flex layout. Sidebar collapse/expand feature (76px to 340px) now works with correct message hierarchy and input positioning.
 - Fixed production build guardrail failure in `app/components/editor/codemirror/cm-theme.ts` by replacing unresolved `@uiw/codemirror-theme-vscode` imports with local CodeMirror theme extensions.
 - Comprehensive structure cleanup and validation: full typecheck, lint, and unit-test-changed validation passes; orchestration synchronization ensures all discovered issues tracked as P0 with stable taskId markers; fallback JSON payload tracking for n8n open-tasks pending Data Table row-write restoration.
 - N8N orchestrator diagnostic logging enhanced: error tracking for Data Table row-write failures; root cause identified as SQLITE_FULL (n8n dev instance disk at capacity); n8n disk cleanup completed, fallback JSON export deactivated, native API Data Table writes restored and verified operational.
@@ -225,3 +225,4 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ---
 
 For historical upstream changes before this fork baseline, refer to the original bolt.diy repository release history.
+
