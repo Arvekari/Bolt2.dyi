@@ -10,9 +10,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Added
 
-- Email-based project sharing with user verification: Projects can now be shared by email in the `Projects` section, with explicit error messages when the email is not registered.
-- `findUserByEmail` persistence function across SQLite and PostgREST backends for email-based user lookup.
-- Email field added to users table schema with unique constraint and migration support.
+- Settings Control Panel UX redesign task (P1): category-grid card layout replacing two-panel architecture; target state shows category sections (General, Preferences, AI, Integrations, Security, System) as clickable cards with icons and description text.
 
 ### Changed
 
