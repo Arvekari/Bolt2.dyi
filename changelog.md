@@ -10,6 +10,22 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Added
 
+- None.
+
+### Changed
+
+- None.
+
+### Fixed
+
+- None.
+
+---
+
+## [0.2.0] - 2026-03-11
+
+### Added
+
 - Settings Control Panel UX redesign task (P1): category-grid card layout with collapsible left navigation sidebar (expandable to full width with labels + icons, collapses to icon-only compact mode with tooltips). Six category cards: General, Preferences, AI, Integrations, Security, System.
 - Runtime parser coverage for build-oriented AI responses in `unit-tests/lib/runtime/runtime.enhanced-message-parser.test.ts`, including automatic `file` and `shell` boltAction interpretation from raw code blocks.
 - Baseline unit test scaffold for CodeMirror theme module in `unit-tests/components/editor/codemirror/cm-theme.test.ts`.
