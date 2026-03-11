@@ -19,7 +19,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Fixed
 
 - Docker production build now resolves `platform/security/authz.ts`, `platform/security/jwt.ts`, and `platform/users/service.ts` correctly: missing platform source files were committed and platform app-wrapper re-exports were changed from wildcard `export *` to explicit named exports to fix Rollup production bundling.
-- `unit-tests/components/chat/ChatBox.test.ts` JSX syntax removed (JSX tests remain in `ChatBox.test.tsx`); `.ts` file is now a non-JSX placeholder to satisfy test-mapper without breaking esbuild.
+- `unit-tests/components/chat/ChatBox.test.ts` and `Chat.client.test.ts` JSX syntax removed (JSX tests remain in `.test.tsx` counterparts); `.ts` files are now non-JSX placeholders to satisfy test-mapper without breaking esbuild.
 
 ---
 
