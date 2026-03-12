@@ -6,25 +6,38 @@ class CompatibleTextDecoderStream {
 
   constructor(label: string = 'utf-8', options?: TextDecoderOptions) {
     const decoder = new TextDecoder(label, options);
-    const transform = new TransformStream<BufferSource, string>({
-      transform(chunk, controller) {
-        const text = decoder.decode(chunk, { stream: true });
+    const Readable = globalThis.ReadableStream;
+    const Writable = globalThis.WritableStream;
 
-        if (text.length > 0) {
-          controller.enqueue(text);
-        }
-      },
-      flush(controller) {
-        const text = decoder.decode();
+    let readableController: ReadableStreamDefaultController<string> | undefined;
 
-        if (text.length > 0) {
-          controller.enqueue(text);
-        }
+    this.readable = new Readable<string>({
+      start(controller) {
+        readableController = controller;
       },
     });
 
-    this.readable = transform.readable;
-    this.writable = transform.writable;
+    this.writable = new Writable<BufferSource>({
+      write(chunk) {
+        const text = decoder.decode(chunk, { stream: true });
+
+        if (text.length > 0) {
+          readableController?.enqueue(text);
+        }
+      },
+      close() {
+        const text = decoder.decode();
+
+        if (text.length > 0) {
+          readableController?.enqueue(text);
+        }
+
+        readableController?.close();
+      },
+      abort(reason) {
+        readableController?.error(reason);
+      },
+    });
   }
 }
 
