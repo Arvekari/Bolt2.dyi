@@ -1,332 +1,474 @@
-# bolt2.dyi
+# Bolt2.dyi
 
-bolt2.dyi is a structured and modular fork of the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy) project.
+**Bolt2.dyi** is a structured and modular fork of the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy).
 
-This fork preserves the familiar user experience while refactoring the internal architecture into a clean, layered, and extensible AI platform model.
+It keeps the practical AI workspace spirit of the original project, but pushes the platform further in three major directions:
 
-The objective is clarity, maintainability, and controlled evolution.
+- a cleaner layered architecture
+- a more modern workspace and settings UX
+- broader and more structured provider/model support
+
+Bolt2.dyi is no longer only a chat UI fork. It is evolving toward a maintainable AI workspace platform with controlled integrations, better runtime reliability, and a stronger foundation for settings, user scope, collaboration, and reusable artifacts.
 
 ---
 
-## Project Purpose
+## Original Project
 
-bolt2.dyi evolves bolt.diy from:
+Bolt2.dyi is based on the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy) project.
 
-> A single-user AI chat tool
+That link is intentionally preserved here, because the original project provided the foundation this fork builds on.
 
-into:
+---
 
-> A layered AI platform with optional external integrations and controlled fallback architecture.
+## Screenshots and Demo
 
-Design principles:
-
-- Clear separation of concerns
-- Optional external integrations (never bundled)
-- SQLite default fallback
-- External PostgreSQL support
-- Connector-based integration model
-- Graceful degradation
-- Structured documentation
-- No hidden infrastructure assumptions
+### Main workspace
 
 <img width="1400" height="883" alt="Bolt2-main" src="https://github.com/user-attachments/assets/6a7e51de-8982-4594-889e-f67d7d4f7317" />
 
+### Updated workspace / UI direction
+
 <img width="2462" height="1172" alt="image" src="https://github.com/user-attachments/assets/76af0720-a629-4fba-b6ed-86d02c1b7bdf" />
+
+### Video demo
 
 [![Watch the video](https://github.com/user-attachments/assets/6a7e51de-8982-4594-889e-f67d7d4f7317)](https://github.com/user-attachments/assets/150f7c90-6274-4103-9fff-a2423dcdcb36)
 
 ---
 
+## Why This Fork Exists
+
+Bolt2.dyi was created to take the original idea further in a more structured direction.
+
+The goal is to evolve from:
+
+> a useful AI chat and build tool
+
+toward:
+
+> a layered AI workspace platform with modern UX, structured settings, cleaner provider handling, stronger persistence boundaries, and room for controlled future expansion
+
+The project prioritizes:
+
+- clarity
+- maintainability
+- modularity
+- graceful degradation
+- optional integrations
+- practical UX improvements
+- controlled evolution instead of random sprawl
+
+---
+
+## What Has Changed in Bolt2.dyi
+
+Compared to a simpler baseline fork direction, Bolt2.dyi has already introduced significant work in areas such as:
+
+- modernized workspace UX
+- redesigned settings control panel direction
+- persistent top-bar provider/model selection
+- settings-based provider key management
+- broader model/provider support
+- streaming timeout and response lifecycle fixes
+- cleaner user-scoped persistence behavior
+- artifact CRUD foundation
+- collaboration-related backend groundwork
+- stronger test and validation coverage
+- orchestration and runtime guardrails
+
+This fork-specific work is tracked in the project changelog.
+
+---
+
+## Current Product Direction
+
+Bolt2.dyi is being shaped around five practical pillars.
+
+### 1. Modern AI Workspace UX
+
+A more deliberate workspace layout with a cleaner sidebar, persistent header controls, chat-first flow, workbench-aware layout behavior, and a more structured settings experience.
+
+### 2. Layered Internal Architecture
+
+A clearer dependency model that keeps UI, platform concerns, core runtime, integrations, and infrastructure from collapsing into one another.
+
+### 3. Structured Provider and Model Support
+
+Provider selection, model selection, and provider key management are being moved into a more coherent settings-and-workspace model instead of scattered ad hoc controls.
+
+### 4. Better Runtime Reliability
+
+The project is actively fixing high-impact runtime problems such as hanging streams, bad timeout logic, unsupported provider parameter issues, and delayed-response handling.
+
+### 5. Stronger Foundation for Future Growth
+
+Artifacts, collaboration scope, user-scoped persistence, auth boundaries, and backend-agnostic persistence patterns are being built in a way that supports future expansion.
+
+---
+
 ## Architecture Overview
 
-The system follows a layered dependency model:
+Bolt2.dyi follows a layered dependency model:
 
-ui → platform → core → integrations → infrastructure
+`ui → platform → core → integrations → infrastructure`
 
-Each layer has a strict responsibility:
+This layered direction is already reflected in the current repository structure and in the project’s existing architectural documentation.
 
-### `/core`
+### Layer responsibilities
 
-- Chat engine
-- Streaming logic
-- LLM abstraction
-- Model routing
-- Tool invocation contracts
-
-### `/platform`
-
-- Authentication (JWT)
-- Role-based access control (RBAC)
-- User management
-- Prompt management (versioned)
-- Provider configuration
-- Audit logging
-- Rate limiting
-- Input validation
-
-### `/integrations`
-
-- SQLite adapter
-- PostgreSQL adapter (external)
-- PostgREST client (external)
-- OpenClaw connector (external)
-- MCP adapter
-
-### `/infrastructure`
-
-- Database abstraction layer
-- Migration engine
-- Schema versioning
-- Logging
-- Encryption utilities
-- Configuration loading
-
-### `/ui`
+#### `/ui`
 
 - React frontend
-- Admin interface
-- Settings and provider management
+- workspace layout
+- settings surfaces
+- topbar/sidebar UX
+- user-facing controls
 
-### `/docs`
+#### `/platform`
 
-- Structured documentation hierarchy
+- authentication
+- user/session context
+- provider configuration
+- prompt and app-level control logic
+- access control and platform-facing policy concerns
 
-No database logic inside UI.  
-No integration logic inside UI.  
-No circular dependencies.
+#### `/core`
+
+- chat runtime
+- LLM abstraction
+- streaming logic
+- model routing
+- request/response lifecycle behavior
+- tool invocation contracts
+
+#### `/integrations`
+
+- provider adapters
+- external system connectors
+- MCP integration
+- persistence connectors such as PostgREST-facing integration paths
+- optional external service bindings
+
+#### `/infrastructure`
+
+- database abstraction
+- migrations
+- schema/version handling
+- logging
+- encryption utilities
+- config loading
+- low-level persistence support
+
+### Design rules
+
+- no database logic inside UI
+- no integration logic inside UI
+- no circular dependencies
+- optional integrations must degrade gracefully
+- missing optional infrastructure must not crash the app
+
+These principles are already part of the current repo direction.
 
 ---
 
-## Directory Structure
+## UX Direction
 
-/core
-/platform
-/integrations
-/infrastructure
-/ui
-/extensions
-/docs
+Bolt2.dyi has already moved beyond a basic chat layout direction.
 
-Only the following files exist at root level:
+Recent UX work in the fork includes:
 
-- README.md
-- CHANGELOG.md
-- LICENSE.md
+- provider/model selectors moved into the top toolbar
+- header controls visible before first message
+- chat-first workspace flow
+- improved sidebar structure and bottom controls
+- explicit `Recents` and section-based sidebar language
+- settings control panel redesign direction
+- better dark/light theme alignment
+- workbench visibility control improvements
+- landing page redesign work
+- settings surface tokenization and theme consistency
 
-All other documentation lives under `/docs`.
+In practice, the project is moving toward a more modern assistant workspace model rather than a simple single-view chat screen.
 
 ---
 
-## Database Modes
+## Settings and Control Panel Direction
 
-bolt2.dyi supports two database modes.
+Settings in Bolt2.dyi are no longer treated as an afterthought.
 
-### Default Mode – SQLite
+The project is actively moving toward a settings workspace / control panel model with:
 
-- Embedded
-- No external dependency
-- Suitable for single-user setup
-- Automatic startup
+- cleaner information architecture
+- better category grouping
+- more structured navigation
+- stronger visual consistency with the main workspace
+- provider and model management that belongs in settings, not scattered in chat
 
-### Optional Mode – External PostgreSQL
+This is an important part of the project’s UX direction.
 
-- Configured via environment variables
-- Not bundled
-- Requires external service
+---
 
-### Optional PostgREST
+## Provider and Model Support
 
-- External endpoint
-- Used only if configured
-- Not required
+Bolt2.dyi has expanded provider/model support significantly.
 
-Behavior:
+The project now supports a broad multi-provider selection experience and includes support for a large set of models across providers such as:
 
-- If PostgreSQL is not configured → SQLite is used.
-- If PostgreSQL connection fails → error is logged and fallback applies (if allowed).
-- System must never crash due to missing optional integrations.
+- OpenAI
+- Anthropic
+- Google
+- AWS Bedrock
+- DeepSeek
+- Mistral
+- Groq
+- GitHub
+- Cohere
 
-See documentation:
+Model/provider selection has also been moved into a more persistent top-level workspace pattern, and provider/model visibility is tied to configured keys/settings rather than being scattered loosely in the chat surface.
 
-- `/docs/database/sqlite.md`
-- `/docs/database/postgresql.md`
-- `/docs/database/postgrest.md`
-- `/docs/database/migrations.md`
+The exact supported set will continue to evolve, but the direction is clear: Bolt2.dyi is designed to be a practical multi-provider workspace.
+
+---
+
+## Runtime Reliability Improvements
+
+A major focus of this fork has been runtime correctness and resilience.
+
+Recent work includes fixes for issues such as:
+
+- chat streaming stalls
+- wrong timeout model based on total elapsed time
+- delayed chunk handling
+- missing `await` behavior in streaming paths
+- fallback handling when model message conversion fails
+- provider-specific parameter mismatch issues
+- Codex response hangs caused by incorrect request parameter usage
+
+The project is actively prioritizing "works reliably in real use" over superficial feature accumulation.
+
+---
+
+## Persistence, Auth, and User Scope
+
+Bolt2.dyi is moving beyond a purely loose single-user state model.
+
+The project now includes fork-level work in areas such as:
+
+- user-scoped profile persistence
+- authenticated profile context switching
+- secure cookie policy sharing
+- user-scoped access guards for collaboration-aware persistence
+- stronger auth/session correctness
+- backend-agnostic persistence abstraction
+
+This gives the project a better foundation for future multi-user and collaboration scenarios.
+
+---
+
+## Artifacts and Collaboration Foundations
+
+Bolt2.dyi is also laying groundwork for more structured reuse and collaboration.
+
+Fork work already includes:
+
+- artifact CRUD foundation
+- visibility controls such as private, project, and public scope
+- project/user ownership awareness
+- collaboration-related persistence access guards
+- invitation flow direction using email-based project sharing semantics
+
+These areas are still evolving, but they are already part of the real project direction.
+
+---
+
+## Database and Persistence Modes
+
+Bolt2.dyi supports multiple persistence modes and is designed to degrade gracefully.
+
+The current database direction includes:
+
+- SQLite as a practical default/fallback path
+- optional external PostgreSQL
+- optional PostgREST
+- graceful behavior when optional integrations are absent or unavailable
+
+### Current persistence philosophy
+
+- SQLite should remain practical for local and simpler setups
+- external database modes should remain optional
+- missing external services should not hard-crash the app
+- persistence behavior should stay backend-agnostic where practical
 
 ---
 
 ## Optional Integrations
 
-bolt2.dyi does not bundle infrastructure services.
+Bolt2.dyi is not designed around bundling every service by default.
 
-### OpenClaw
+The project documentation already describes optional integration patterns including external integrations such as MCP and n8n, with graceful failure expectations rather than mandatory bundled assumptions.
 
-- External instance only
-- Connector-based
-- Capability detection at startup
-- Graceful degradation if unavailable
-- No system crash if not configured
+This philosophy remains important:
 
-Documentation:
-`/docs/integrations/openclaw.md`
-
-### MCP (Model Context Protocol)
-
-- Modular adapter
-- Context scoped per request
-- No global mutable context
-- Logged lifecycle
-
-Documentation:
-`/docs/integrations/mcp.md`
-
-### n8n
-
-- External n8n instance only (not bundled)
-- API key + base URL configuration required
-- Supports workflow deployment through the n8n integration route
-- Can be configured from system settings when environment variables are not set
-- Graceful failure if n8n is not configured or unavailable
-
-Current integration endpoint:
-`/api/n8n/workflows`
+- integrations should be modular
+- configuration should be explicit
+- absence of optional services should degrade gracefully
+- the base application should still remain usable
 
 ---
 
-## Security Model
+## Security Direction
 
-bolt2.dyi implements:
+Security and control boundaries matter in Bolt2.dyi.
+
+The current project direction includes security-related areas such as:
 
 - JWT authentication
-- Role-based access control (Admin / User roles)
-- Encrypted API key storage
-- Encrypted integration credentials
-- Structured request logging with request IDs
-- Centralized error handling
-- Input validation
-- Graceful failure handling
+- RBAC / role separation
+- encrypted API key storage
+- encrypted integration credential handling
+- structured logging
+- centralized error handling
+- input validation
 
-Security documentation:
-
-- `/docs/security/authentication.md`
-- `/docs/security/rbac.md`
-- `/docs/security/encryption.md`
-- `/docs/security/audit-logging.md`
+That remains part of the project’s direction as the product evolves.
 
 ---
 
-## Setup
+## Testing and Validation Direction
 
-### Docker
+Bolt2.dyi is increasingly test- and guardrail-oriented.
 
-The docker setup includes the core application only.
+The fork changelog shows significant investment in:
 
-It does not bundle:
+- unit tests
+- runtime parser coverage
+- performance and stability tests
+- provider routing coverage
+- streaming regression tests
+- orchestration guardrails
+- Docker and smoke validation
+- changelog, test, lint, and typecheck enforcement around commit/push flows
 
-- PostgreSQL
-- PostgREST
-- OpenClaw
-
-See:
-
-- `/docs/setup/docker/development.md`
-- `/docs/setup/docker/production.md`
-- `/docs/setup/docker/external-postgres.md`
-- `/docs/setup/docker/external-openclaw.md`
-
-### Single Host Installation
-
-Supported environments:
-
-- Windows
-- Linux
-- macOS
-
-See:
-
-- `/docs/setup/single-host/windows.md`
-- `/docs/setup/single-host/linux.md`
-- `/docs/setup/single-host/osx.md`
+This is intentional. The project is moving toward stronger change safety and fewer silent regressions.
 
 ---
 
-## Development Guidelines
+## Repository Structure
 
-Development documentation:
+The repository already reflects the platform direction.
 
-- `/docs/development/local-dev.md`
-- `/docs/development/testing.md`
-- `/docs/development/migration-guide.md`
+At a high level, the repo includes areas such as:
 
-Key rules:
+- `app`
+- `bolt.work`
+- `core`
+- `docs`
+- `electron`
+- `functions`
+- `infrastructure`
+- `integrations`
+- `platform`
+- `public`
+- `scripts`
+- `tests`
+- `types`
+- `ui`
+- `unit-tests`
 
-- No direct integration calls from UI
-- No hardcoded credentials
-- No circular dependencies
-- Test-first change rule is mandatory (verify/create tests before production code changes)
-- All changes must pass test suite
-- Refactors must not introduce regressions
-
----
-
-## Testing
-
-Testing requirements:
-
-- Existing tests must pass
-- Refactors must not break functionality
-- Optional integrations must support mocked tests
-- Migration logic must be tested
-- Coverage should increase over time
-
-Testing documentation:
-`/docs/development/testing.md`
+Use the existing structure unless there is a strong reason to change it.
 
 ---
 
-## Operations
+## Getting Started
 
-Operational documentation:
+Clone the repo:
 
-- `/docs/operations/deployment.md`
-- `/docs/operations/environment-variables.md`
-- `/docs/operations/health-monitoring.md`
-- `/docs/operations/troubleshooting.md`
+    git clone https://github.com/Arvekari/Bolt2.dyi.git
+    cd Bolt2.dyi
 
-Health endpoint:
-`/api/health`
+Install dependencies:
 
----
+    pnpm install
 
-## Documentation Map
+Run development mode:
 
-All structured documentation is located under:
+    pnpm run dev
 
-/docs
+Build:
 
-Sections:
+    pnpm run build
 
-- Setup → `/docs/setup`
-- Database → `/docs/database`
-- Integrations → `/docs/integrations`
-- Architecture → `/docs/architecture`
-- Security → `/docs/security`
-- API → `/docs/api`
-- Development → `/docs/development`
-- Operations → `/docs/operations`
+Typecheck:
+
+    pnpm typecheck
+
+Run unit tests:
+
+    pnpm test:unit
+
+Depending on what you are changing, you may also want to run additional validation or smoke commands defined in the repo scripts.
 
 ---
 
-## Status
+## Who This Project Is For
 
-bolt2.dyi is an actively evolving structured fork.
+Bolt2.dyi is useful for people who want:
 
-The focus is on architectural clarity, controlled growth, and professional project layout rather than rapid feature expansion.
+- a more structured fork of bolt.diy
+- a multi-provider AI workspace direction
+- a modernized assistant/workbench UX
+- a codebase with stronger architectural boundaries
+- a platform that can evolve toward richer settings, persistence, user scope, artifacts, and integrations without becoming unmaintainable
 
 ---
 
-## Attribution
+## Contributing
 
-bolt2.dyi is based on the original bolt.diy project.
+Contributions are welcome.
 
-This fork restructures and extends the architecture while preserving core functionality.
+Please read:
+
+`CONTRIBUTING.md`
+
+before opening a pull request.
+
+Bolt2.dyi benefits most from contributions that improve:
+
+- architecture
+- runtime reliability
+- UX coherence
+- provider support
+- test coverage
+- documentation
+- maintainability
+
+---
+
+## Changelog
+
+Fork-specific changes are tracked in:
+
+`CHANGELOG.md`
+
+This changelog is specific to Bolt2.dyi and does not attempt to mirror upstream bolt.diy release history.
+
+---
+
+## Credits
+
+- original foundation: [bolt.diy](https://github.com/stackblitz-labs/bolt.diy)
+- fork direction, architecture evolution, and continued development: Markku Arvekari
+- thanks to everyone who has contributed ideas, fixes, validation, and iteration to Bolt2.dyi
+
+---
+
+## Project Status
+
+Bolt2.dyi is active, evolving, and already significantly beyond a cosmetic fork.
+
+The architecture direction is real.  
+The UX direction is real.  
+The provider/runtime/persistence improvements are real.  
+And there is still more to do.
+
+That is exactly the point.
