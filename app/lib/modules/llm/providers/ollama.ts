@@ -4,6 +4,7 @@ import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { logger } from '~/utils/logger';
+import { createStreamCompatibleFetch } from '~/lib/modules/llm/stream-fetch-compat';
 
 interface OllamaModelDetails {
   parent_model: string;
@@ -127,6 +128,7 @@ export default class OllamaProvider extends BaseProvider {
       baseURL: `${baseUrl}/v1`,
       apiKey: 'ollama',
       name: 'ollama',
+      fetch: createStreamCompatibleFetch(),
     });
 
     return ollamaProvider.chat(model);

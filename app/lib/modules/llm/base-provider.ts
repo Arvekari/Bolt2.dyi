@@ -3,6 +3,7 @@ import type { ProviderInfo, ProviderConfig, ModelInfo } from './types';
 import type { IProviderSetting } from '~/types/model';
 import { createOpenAI } from '@ai-sdk/openai';
 import { LLMManager } from './manager';
+import { createStreamCompatibleFetch } from '~/lib/modules/llm/stream-fetch-compat';
 
 /** Default timeout for model listing API calls (5 seconds) */
 const MODEL_FETCH_TIMEOUT = 5_000;
@@ -176,6 +177,7 @@ export function getOpenAILikeModel(baseURL: string, apiKey: OptionalApiKey, mode
   const openai = createOpenAI({
     baseURL,
     apiKey,
+    fetch: createStreamCompatibleFetch(),
   });
 
   return openai(model);
