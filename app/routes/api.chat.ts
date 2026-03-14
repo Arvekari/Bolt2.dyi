@@ -19,12 +19,185 @@ import { AgentRunService } from '~/lib/.server/agents/agentRunService';
 import { processMcpMessagesForRequest } from '~/integrations/mcp/adapter';
 import { getRequestId } from '~/platform/http/request-context';
 import { createDataStream, writeStreamPartToDataStream, type DataStreamWriter } from '~/lib/.server/llm/data-stream';
+import {
+  synthesizeMissingFileArtifactForStartOnlyOutput,
+  shouldNormalizeOllamaBuildMode,
+  shouldRetryOllamaBuildNarrative,
+  synthesizePreviewStartActionForExistingArtifacts,
+  synthesizeBoltArtifactFromContent,
+  synthesizeMissingProjectEssentialsForExistingArtifacts,
+} from '~/lib/.server/llm/ollama-response-normalization';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
 }
 
 const logger = createScopedLogger('api.chat');
+
+function toLogPreview(content: string, maxChars = 1200): string {
+  const normalized = content.replace(/\s+/g, ' ').trim();
+
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxChars)}…[truncated]`;
+}
+
+function extractModelSizeInBillions(modelName?: string): number | undefined {
+  if (!modelName) {
+    return undefined;
+  }
+
+  const match = modelName.match(/(\d+(?:\.\d+)?)\s*b\b/i);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getOllamaRecoveryRoundLimit(params: {
+  providerName?: string;
+  chatMode: 'discuss' | 'build';
+  ollamaBridgedSystemPromptSplit?: boolean;
+  modelName?: string;
+}): number {
+  if (!shouldNormalizeOllamaBuildMode({ chatMode: params.chatMode, providerName: params.providerName })) {
+    return 1;
+  }
+
+  const modelSizeB = extractModelSizeInBillions(params.modelName);
+  const splitModeActive = params.ollamaBridgedSystemPromptSplit !== true;
+
+  if (!splitModeActive) {
+    return 1;
+  }
+
+  if (modelSizeB !== undefined && modelSizeB <= 8) {
+    return 6;
+  }
+
+  if (modelSizeB !== undefined && modelSizeB <= 16) {
+    return 5;
+  }
+
+  if (modelSizeB === undefined) {
+    return 4;
+  }
+
+  return 3;
+}
+
+type BuildOutputParts = {
+  normalizedArtifact?: string;
+  missingFileArtifact?: string;
+  previewStartAction?: string;
+  missingProjectEssentials?: string;
+  passThroughText?: string;
+};
+
+function hasExecutableFileAction(content: string): boolean {
+  return /<boltAction\s+type="file"[^>]*filePath="[^"]+"/i.test(content);
+}
+
+function isTrivialViteHtmlShell(content: string): boolean {
+  const trimmed = content.trim();
+
+  if (!/<!doctype html>|<html[\s>]/i.test(trimmed)) {
+    return false;
+  }
+
+  return /<div\s+id=["']root["']\s*><\/div>/i.test(trimmed) && /<script[^>]+src=["']\/src\/main\.(?:tsx|jsx|ts|js)["'][^>]*><\/script>/i.test(trimmed);
+}
+
+function extractExecutableBoltArtifacts(content: string): string | undefined {
+  const matches = Array.from(content.matchAll(/<boltArtifact\b[\s\S]*?<\/boltArtifact>/gi)).map((match) => match[0].trim());
+
+  if (matches.length === 0) {
+    return undefined;
+  }
+
+  return `\n${matches.join('\n')}\n`;
+}
+
+function getBuildOutputToPassThrough(content: string): string | undefined {
+  const trimmed = content.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const artifactBlocks = extractExecutableBoltArtifacts(trimmed);
+
+  if (artifactBlocks) {
+    return artifactBlocks;
+  }
+
+  if (/<!doctype html>|<html[\s>]/i.test(trimmed) && !isTrivialViteHtmlShell(trimmed)) {
+    return trimmed;
+  }
+
+  if (/```(?:html|tsx|jsx|ts|js|py|php|json)\b[\s\S]*```/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return undefined;
+}
+
+function collectBuildOutputParts(content: string, fallbackNarrative?: string): BuildOutputParts {
+  const normalizedArtifact = synthesizeBoltArtifactFromContent(content);
+  const artifactSource = normalizedArtifact || extractExecutableBoltArtifacts(content) || content;
+
+  return {
+    normalizedArtifact,
+    missingFileArtifact: synthesizeMissingFileArtifactForStartOnlyOutput({
+      content,
+      fallbackNarrative,
+    }),
+    previewStartAction: synthesizePreviewStartActionForExistingArtifacts(artifactSource),
+    missingProjectEssentials: synthesizeMissingProjectEssentialsForExistingArtifacts(artifactSource),
+    passThroughText: getBuildOutputToPassThrough(content),
+  };
+}
+
+function hasAssembledExecutableBuildOutput(parts: BuildOutputParts): boolean {
+  return Boolean(
+    parts.normalizedArtifact ||
+      parts.missingFileArtifact ||
+      parts.previewStartAction ||
+      parts.missingProjectEssentials ||
+      parts.passThroughText,
+  );
+}
+
+function writeAssembledBuildOutput(parts: BuildOutputParts, dataStream: DataStreamWriter): void {
+  if (parts.normalizedArtifact) {
+    writeStreamPartToDataStream({ type: 'text-delta', text: parts.normalizedArtifact }, dataStream);
+  }
+
+  if (parts.missingFileArtifact) {
+    writeStreamPartToDataStream({ type: 'text-delta', text: parts.missingFileArtifact }, dataStream);
+  }
+
+  if (parts.previewStartAction) {
+    writeStreamPartToDataStream({ type: 'text-delta', text: parts.previewStartAction }, dataStream);
+  }
+
+  if (parts.missingProjectEssentials) {
+    writeStreamPartToDataStream({ type: 'text-delta', text: parts.missingProjectEssentials }, dataStream);
+  }
+
+  if (parts.passThroughText && !parts.normalizedArtifact) {
+    writeStreamPartToDataStream({ type: 'text-delta', text: parts.passThroughText }, dataStream);
+  }
+}
+
+function isBuildOutputSafeToPassThrough(content: string): boolean {
+  return Boolean(getBuildOutputToPassThrough(content) || hasExecutableFileAction(content.trim()));
+}
 
 async function chatAction({ context, request }: ActionFunctionArgs) {
   const streamRecovery = new StreamRecoveryManager({
@@ -35,7 +208,18 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
     },
   });
 
-  const { messages, files, promptId, contextOptimization, supabase, chatMode, designScheme, maxLLMSteps } =
+  const {
+    messages,
+    files,
+    promptId,
+    contextOptimization,
+    supabase,
+    chatMode,
+    designScheme,
+    maxLLMSteps,
+    ollamaBridgedSystemPromptSplit,
+    clientRequestId,
+  } =
     await request.json<{
       messages: Messages;
       files: any;
@@ -43,6 +227,8 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       contextOptimization: boolean;
       chatMode: 'discuss' | 'build';
       designScheme?: DesignScheme;
+      ollamaBridgedSystemPromptSplit?: boolean;
+      clientRequestId?: string;
       supabase?: {
         isConnected: boolean;
         hasSelectedProject: boolean;
@@ -53,6 +239,23 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
       };
       maxLLMSteps: number;
     }>();
+
+  const resolvedClientRequestId =
+    clientRequestId || request.headers.get('X-Client-Request-Id') || request.headers.get('x-client-request-id') || undefined;
+
+  const latestUserMessage = messages.filter((message) => message.role === 'user').slice(-1)[0];
+  const requestModelInfo = latestUserMessage ? extractPropertiesFromMessage(latestUserMessage) : { model: undefined, provider: undefined };
+
+  logger.info('Chat request received', {
+    requestId: getRequestId(request),
+    clientRequestId: resolvedClientRequestId,
+    chatMode,
+    promptId: promptId || 'default',
+    messageCount: messages.length,
+    model: requestModelInfo.model,
+    provider: requestModelInfo.provider,
+    contextOptimization,
+  });
 
   const cookieHeader = request.headers.get('Cookie');
   const apiKeys = await resolveApiKeys(cookieHeader, context.cloudflare?.env as any);
@@ -333,10 +536,48 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               summary,
               messageSliceId,
               customPrompt,
+              ollamaBridgedSystemPromptSplit,
+              forcedModel: model,
+              forcedProvider: provider,
             });
 
             await (async () => {
+              let hasLoggedFirstPart = false;
+              let streamedPartCount = 0;
+              let pendingFinishPart: any;
+              let streamedTextBuffer = '';
+              // Only buffer text-deltas for Ollama/local providers that may need normalization
+              // or retries. Cloud providers (OpenAI, Anthropic, etc.) stream progressively.
+              const shouldBufferContinuationBuildText = shouldNormalizeOllamaBuildMode({ chatMode, providerName: provider });
+
               for await (const part of result.fullStream) {
+                streamedPartCount += 1;
+
+                if (!hasLoggedFirstPart) {
+                  hasLoggedFirstPart = true;
+                  logger.info('First stream part received (continuation segment)', {
+                    requestId: getRequestId(request),
+                    clientRequestId: resolvedClientRequestId,
+                    partType: part.type,
+                    streamedPartCount,
+                    model,
+                    provider,
+                  });
+                }
+
+                if (part.type === 'text-delta' && typeof part.text === 'string') {
+                  streamedTextBuffer += part.text;
+                }
+
+                if (part.type === 'finish') {
+                  pendingFinishPart = part;
+                  continue;
+                }
+
+                if (shouldBufferContinuationBuildText && (part.type === 'text-delta' || part.type === 'reasoning-delta')) {
+                  continue;
+                }
+
                 writeStreamPartToDataStream(part, dataStream);
 
                 if (part.type === 'error') {
@@ -345,6 +586,49 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
 
                   return;
                 }
+              }
+
+              const continuationParts = collectBuildOutputParts(streamedTextBuffer, streamedTextBuffer);
+
+              if (
+                shouldNormalizeOllamaBuildMode({
+                  chatMode,
+                  providerName: provider,
+                })
+              ) {
+                if (continuationParts.normalizedArtifact) {
+                  logger.info('Injected Ollama build-mode artifact normalization (continuation segment)', {
+                    requestId: getRequestId(request),
+                    clientRequestId: resolvedClientRequestId,
+                    model,
+                    provider,
+                    generatedChars: continuationParts.normalizedArtifact.length,
+                  });
+                }
+
+                writeAssembledBuildOutput(continuationParts, dataStream);
+              } else if (chatMode === 'build') {
+                // For cloud providers text was already streamed; only add supplemental missing parts.
+                const cloudHasArtifacts = hasExecutableFileAction(streamedTextBuffer);
+                if (cloudHasArtifacts) {
+                  if (continuationParts.missingFileArtifact) {
+                    writeStreamPartToDataStream({ type: 'text-delta', text: continuationParts.missingFileArtifact }, dataStream);
+                  }
+                  if (continuationParts.previewStartAction) {
+                    writeStreamPartToDataStream({ type: 'text-delta', text: continuationParts.previewStartAction }, dataStream);
+                  }
+                  if (continuationParts.missingProjectEssentials) {
+                    writeStreamPartToDataStream({ type: 'text-delta', text: continuationParts.missingProjectEssentials }, dataStream);
+                  }
+                } else if (hasAssembledExecutableBuildOutput(continuationParts)) {
+                  writeAssembledBuildOutput(continuationParts, dataStream);
+                } else if (streamedTextBuffer.trim().length > 0) {
+                  writeStreamPartToDataStream({ type: 'text-delta', text: streamedTextBuffer }, dataStream);
+                }
+              }
+
+              if (pendingFinishPart) {
+                writeStreamPartToDataStream(pendingFinishPart, dataStream);
               }
             })();
 
@@ -375,10 +659,52 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           summary,
           messageSliceId,
           customPrompt,
+          ollamaBridgedSystemPromptSplit,
+          forcedModel: requestModelInfo.model,
+          forcedProvider: requestModelInfo.provider,
         });
 
         await (async () => {
+          let hasLoggedFirstPart = false;
+          let streamedPartCount = 0;
+          let pendingFinishPart: any;
+          let streamedTextBuffer = '';
+          const shouldNormalizeCurrentRequest = shouldNormalizeOllamaBuildMode({
+            chatMode,
+            providerName: requestModelInfo.provider,
+          });
+          // Only buffer text-deltas for Ollama/local providers (they may need retries/normalization).
+          // Cloud providers (OpenAI, Anthropic, etc.) should stream tokens progressively.
+          const shouldBufferCurrentBuildText = shouldNormalizeCurrentRequest;
+
           for await (const part of result.fullStream) {
+            streamedPartCount += 1;
+
+            if (!hasLoggedFirstPart) {
+              hasLoggedFirstPart = true;
+              logger.info('First stream part received', {
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                partType: part.type,
+                streamedPartCount,
+                model: requestModelInfo.model,
+                provider: requestModelInfo.provider,
+              });
+            }
+
+            if (part.type === 'text-delta' && typeof part.text === 'string') {
+              streamedTextBuffer += part.text;
+            }
+
+            if (part.type === 'finish') {
+              pendingFinishPart = part;
+              continue;
+            }
+
+            if (shouldBufferCurrentBuildText && (part.type === 'text-delta' || part.type === 'reasoning-delta')) {
+              continue;
+            }
+
             writeStreamPartToDataStream(part, dataStream);
             streamRecovery.updateActivity();
 
@@ -399,6 +725,265 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
               return;
             }
           }
+
+          if (shouldNormalizeCurrentRequest && shouldRetryOllamaBuildNarrative(streamedTextBuffer)) {
+            const retryRoundLimit = getOllamaRecoveryRoundLimit({
+              providerName: requestModelInfo.provider,
+              chatMode,
+              ollamaBridgedSystemPromptSplit,
+              modelName: requestModelInfo.model,
+            });
+
+            logger.warn('Ollama build-mode narrative response detected; running recovery rounds', {
+              requestId: getRequestId(request),
+              clientRequestId: resolvedClientRequestId,
+              model: requestModelInfo.model,
+              provider: requestModelInfo.provider,
+              retryRoundLimit,
+              originalResponsePreview: toLogPreview(streamedTextBuffer),
+            });
+
+            let lastRoundText = streamedTextBuffer;
+            let lastRoundFinishPart = pendingFinishPart;
+            let recovered = false;
+
+            for (let retryRound = 1; retryRound <= retryRoundLimit; retryRound += 1) {
+              const retryInstruction =
+                retryRound === 1
+                  ? `Build mode correction: your previous answer was narrative and not executable. Return ONLY executable output using one <boltArtifact> with <boltAction> blocks. Recover into concrete project files that match implementation intent (examples: /index.html, /package.json, /server.js, /main.py, /App.tsx, /index.php, /routes/web.php, /vite.config.ts). Prefer explicit file intent from your own output, and do not include prose outside the artifact.`
+                  : `Build mode correction round ${retryRound}: previous recovery output was still incomplete/non-executable. Continue from your last attempt and return one complete executable <boltArtifact> only, with full <boltAction> file contents and required start action.`;
+
+              dataStream.writeData({
+                type: 'debugStream',
+                eventId: generateId(),
+                source: 'ollama-background-reask',
+                phase: 'start',
+                message: `Narrative/incomplete build response detected; starting recovery round ${retryRound}/${retryRoundLimit}.`,
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                provider: requestModelInfo.provider,
+                model: requestModelInfo.model,
+                retryRound,
+                retryRoundLimit,
+                originalResponsePreview: toLogPreview(lastRoundText, 800),
+                retryInstructionPreview: toLogPreview(retryInstruction, 800),
+              });
+
+              dataStream.writeData({
+                type: 'progress',
+                label: 'response-retry',
+                status: 'in-progress',
+                order: progressCounter++,
+                message: `Refining response into executable build actions (round ${retryRound}/${retryRoundLimit})`,
+              } satisfies ProgressAnnotation);
+
+              const retryResult = await streamText({
+                messages: [
+                  ...processedMessages,
+                  { id: generateId(), role: 'assistant', content: lastRoundText },
+                  {
+                    id: generateId(),
+                    role: 'user',
+                    content: `[Model: ${requestModelInfo.model || 'deepseek-coder-v2:latest'}]\n\n[Provider: ${requestModelInfo.provider || 'Ollama'}]\n\n${retryInstruction}`,
+                  },
+                ] as any,
+                env: context.cloudflare?.env,
+                options,
+                apiKeys,
+                files,
+                providerSettings,
+                promptId,
+                contextOptimization,
+                contextFiles: filteredFiles,
+                chatMode,
+                designScheme,
+                summary,
+                messageSliceId,
+                customPrompt,
+                ollamaBridgedSystemPromptSplit,
+                forcedModel: requestModelInfo.model,
+                forcedProvider: requestModelInfo.provider,
+              });
+
+              let retryPendingFinishPart: any;
+              let retryTextBuffer = '';
+              let retryPartCount = 0;
+
+              for await (const part of retryResult.fullStream) {
+                retryPartCount += 1;
+
+                if (retryPartCount === 1) {
+                  logger.info('First stream part received (background re-ask)', {
+                    requestId: getRequestId(request),
+                    clientRequestId: resolvedClientRequestId,
+                    partType: part.type,
+                    model: requestModelInfo.model,
+                    provider: requestModelInfo.provider,
+                    retryRound,
+                    retryRoundLimit,
+                  });
+                }
+
+                if (part.type === 'text-delta' && typeof part.text === 'string') {
+                  retryTextBuffer += part.text;
+                }
+
+                if (part.type === 'finish') {
+                  retryPendingFinishPart = part;
+                  continue;
+                }
+
+                if (part.type === 'text-delta' || part.type === 'reasoning-delta') {
+                  continue;
+                }
+
+                writeStreamPartToDataStream(part, dataStream);
+                streamRecovery.updateActivity();
+
+                if (part.type === 'error') {
+                  const error: any = part.error;
+                  logger.error('Streaming error during background re-ask:', error);
+                  agentRunService.failRun(agentRun.runId, error, 'execute');
+                  emitAgentRun();
+                  streamRecovery.stop();
+                  return;
+                }
+              }
+
+              const retryParts = collectBuildOutputParts(retryTextBuffer, streamedTextBuffer);
+
+              logger.info('Ollama background re-ask round completed', {
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                model: requestModelInfo.model,
+                provider: requestModelInfo.provider,
+                retryRound,
+                retryRoundLimit,
+                retryResponsePreview: toLogPreview(retryTextBuffer),
+                normalizedArtifactApplied: Boolean(retryParts.normalizedArtifact),
+              });
+
+              dataStream.writeData({
+                type: 'debugStream',
+                eventId: generateId(),
+                source: 'ollama-background-reask',
+                phase: 'complete',
+                message: `Recovery round ${retryRound}/${retryRoundLimit} completed.`,
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                provider: requestModelInfo.provider,
+                model: requestModelInfo.model,
+                retryRound,
+                retryRoundLimit,
+                normalizedArtifactApplied: Boolean(retryParts.normalizedArtifact),
+                retryResponsePreview: toLogPreview(retryTextBuffer, 800),
+              });
+
+              const hasExecutableOutput = hasAssembledExecutableBuildOutput(retryParts);
+
+              if (hasExecutableOutput || retryRound === retryRoundLimit) {
+                if (hasExecutableOutput) {
+                  writeAssembledBuildOutput(retryParts, dataStream);
+                } else if (retryTextBuffer.trim().length > 0) {
+                  writeStreamPartToDataStream({ type: 'text-delta', text: retryTextBuffer }, dataStream);
+                }
+
+                dataStream.writeData({
+                  type: 'progress',
+                  label: 'response-retry',
+                  status: 'complete',
+                  order: progressCounter++,
+                  message: `Executable build actions generated (round ${retryRound}/${retryRoundLimit})`,
+                } satisfies ProgressAnnotation);
+
+                if (retryPendingFinishPart) {
+                  writeStreamPartToDataStream(retryPendingFinishPart, dataStream);
+                } else if (pendingFinishPart) {
+                  writeStreamPartToDataStream(pendingFinishPart, dataStream);
+                }
+
+                recovered = true;
+                streamRecovery.stop();
+                return;
+              }
+
+              lastRoundText = retryTextBuffer;
+              lastRoundFinishPart = retryPendingFinishPart || lastRoundFinishPart;
+            }
+
+            if (!recovered && lastRoundText.trim().length > 0) {
+              const lastRoundPassThrough = getBuildOutputToPassThrough(lastRoundText);
+
+              if (lastRoundPassThrough) {
+                writeStreamPartToDataStream({ type: 'text-delta', text: lastRoundPassThrough }, dataStream);
+              } else {
+                writeStreamPartToDataStream({ type: 'text-delta', text: lastRoundText }, dataStream);
+              }
+
+              if (lastRoundFinishPart) {
+                writeStreamPartToDataStream(lastRoundFinishPart, dataStream);
+              }
+
+              streamRecovery.stop();
+              return;
+            }
+          }
+
+          const currentRequestParts = collectBuildOutputParts(streamedTextBuffer, streamedTextBuffer);
+
+          if (shouldNormalizeCurrentRequest) {
+            if (currentRequestParts.normalizedArtifact) {
+              logger.info('Injected Ollama build-mode artifact normalization', {
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                model: requestModelInfo.model,
+                provider: requestModelInfo.provider,
+                generatedChars: currentRequestParts.normalizedArtifact.length,
+              });
+            }
+
+            writeAssembledBuildOutput(currentRequestParts, dataStream);
+          } else if (chatMode === 'build') {
+            // Text was already streamed for cloud providers.
+            // Only append supplemental missing pieces that weren't in the original response.
+            const cloudOutputHasArtifactActions = hasExecutableFileAction(streamedTextBuffer);
+            if (cloudOutputHasArtifactActions) {
+              logger.info('Cloud build-mode: appending any supplemental missing project pieces', {
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                model: requestModelInfo.model,
+                provider: requestModelInfo.provider,
+                missingFileArtifactApplied: Boolean(currentRequestParts.missingFileArtifact),
+                previewStartActionApplied: Boolean(currentRequestParts.previewStartAction),
+                missingProjectEssentialsApplied: Boolean(currentRequestParts.missingProjectEssentials),
+              });
+              if (currentRequestParts.missingFileArtifact) {
+                writeStreamPartToDataStream({ type: 'text-delta', text: currentRequestParts.missingFileArtifact }, dataStream);
+              }
+              if (currentRequestParts.previewStartAction) {
+                writeStreamPartToDataStream({ type: 'text-delta', text: currentRequestParts.previewStartAction }, dataStream);
+              }
+              if (currentRequestParts.missingProjectEssentials) {
+                writeStreamPartToDataStream({ type: 'text-delta', text: currentRequestParts.missingProjectEssentials }, dataStream);
+              }
+            } else if (hasAssembledExecutableBuildOutput(currentRequestParts)) {
+              // Cloud returned non-bolt output; fall back to assembled normalization.
+              logger.info('Cloud build-mode: non-bolt output detected, applying assembled normalization fallback', {
+                requestId: getRequestId(request),
+                clientRequestId: resolvedClientRequestId,
+                model: requestModelInfo.model,
+                provider: requestModelInfo.provider,
+              });
+              writeAssembledBuildOutput(currentRequestParts, dataStream);
+            } else if (streamedTextBuffer.trim().length > 0) {
+              writeStreamPartToDataStream({ type: 'text-delta', text: streamedTextBuffer }, dataStream);
+            }
+          }
+
+          if (pendingFinishPart) {
+            writeStreamPartToDataStream(pendingFinishPart, dataStream);
+          }
+
           streamRecovery.stop();
         })();
       },

@@ -1,6 +1,7 @@
 import { getSystemPrompt } from './prompts/prompts';
 import optimized from './prompts/optimized';
 import { getFineTunedPrompt } from './prompts/new-prompt';
+import optimizedBolt2DefaultExperimental from './prompts/optimized-bolt2-default-experimental';
 import type { DesignScheme } from '~/types/design-scheme';
 
 export interface PromptOptions {
@@ -41,6 +42,11 @@ export class PromptLibrary {
       label: 'Optimized Prompt (experimental)',
       description: 'An Experimental version of the prompt for lower token usage',
       get: (options) => optimized(options),
+    },
+    optimized_bolt2_default_experimental: {
+      label: 'Optimized Opurion Default (Experimental)',
+      description: 'Experimental professional execution-focused Opurion default prompt',
+      get: (options) => optimizedBolt2DefaultExperimental(options),
     },
   };
   static getList() {

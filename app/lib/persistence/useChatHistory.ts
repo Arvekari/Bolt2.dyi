@@ -316,13 +316,14 @@ ${value.content}
         }
       }
 
-      // Ensure chatId.get() is used here as well
-      if (initialMessages.length === 0 && !chatId.get()) {
+      if (!chatId.get()) {
         const nextId = await getNextId(db);
 
         chatId.set(nextId);
 
-        if (!urlId) {
+        const hasAssistantMessage = messages.some((message) => message.role === 'assistant');
+
+        if (!urlId && hasAssistantMessage) {
           navigateChat(nextId);
         }
       }

@@ -18,6 +18,7 @@ export type TabType =
   | 'vercel'
   | 'supabase'
   | 'event-logs'
+  | 'debug'
   | 'mcp'
   | 'n8n'
   | 'openclaw'
@@ -86,6 +87,7 @@ export const TAB_LABELS: Record<TabType, string> = {
   vercel: 'Vercel',
   supabase: 'Supabase',
   'event-logs': 'Event Logs',
+  debug: 'Debug',
   mcp: 'MCP Servers',
   n8n: 'n8n',
   openclaw: 'OpenClaw',

@@ -3,6 +3,6 @@ import { getSystemPrompt } from '~/lib/common/prompts/prompts';
 
 describe('cycle26 system', () => {
   it('contains response requirements section', () => {
-    expect(getSystemPrompt()).toContain('You are Bolt');
+    expect(getSystemPrompt()).toContain('You are Opurion');
   });
 });

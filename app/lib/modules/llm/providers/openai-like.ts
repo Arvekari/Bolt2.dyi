@@ -3,9 +3,24 @@ import type { ModelInfo } from '~/lib/modules/llm/types';
 import type { IProviderSetting } from '~/types/model';
 import type { LanguageModelV1 } from 'ai';
 import { logger } from '~/utils/logger';
+import { isModelBelowMinimumSize, MIN_LOCAL_MODEL_SIZE_B } from '~/lib/common/system-prompt-profiles';
 
 interface OpenAIModelsResponse {
   data: Array<{ id: string }>;
+}
+
+function isLikelyLocalEndpoint(baseUrl: string): boolean {
+  const normalized = baseUrl.toLowerCase();
+
+  return (
+    normalized.includes('localhost') ||
+    normalized.includes('127.0.0.1') ||
+    normalized.includes('host.docker.internal') ||
+    normalized.includes('localai') ||
+    /https?:\/\/10\./.test(normalized) ||
+    /https?:\/\/192\.168\./.test(normalized) ||
+    /https?:\/\/172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)
+  );
 }
 
 export default class OpenAILikeProvider extends BaseProvider {
@@ -50,13 +65,22 @@ export default class OpenAILikeProvider extends BaseProvider {
       }
 
       const res = (await response.json()) as OpenAIModelsResponse;
+      const shouldFilterBySize = isLikelyLocalEndpoint(baseUrl);
 
-      return res.data.map((model) => ({
-        name: model.id,
-        label: model.id,
-        provider: this.name,
-        maxTokenAllowed: 8000,
-      }));
+      return res.data
+        .filter((model) => {
+          if (!shouldFilterBySize) {
+            return true;
+          }
+
+          return !isModelBelowMinimumSize(model.id, MIN_LOCAL_MODEL_SIZE_B);
+        })
+        .map((model) => ({
+          name: model.id,
+          label: model.id,
+          provider: this.name,
+          maxTokenAllowed: 8000,
+        }));
     } catch (error) {
       logger.info(`${this.name}: Could not fetch /models endpoint, checking fallback env`, error);
 
@@ -67,7 +91,7 @@ export default class OpenAILikeProvider extends BaseProvider {
       if (modelsEnv) {
         logger.info(`${this.name}: Using OPENAI_LIKE_API_MODELS fallback`);
 
-        return this._parseModelsFromEnv(modelsEnv);
+        return this._parseModelsFromEnv(modelsEnv, isLikelyLocalEndpoint(baseUrl));
       }
 
       return [];
@@ -78,7 +102,7 @@ export default class OpenAILikeProvider extends BaseProvider {
    * Parse OPENAI_LIKE_API_MODELS environment variable
    * Format: path/to/model1:limit;path/to/model2:limit;path/to/model3:limit
    */
-  private _parseModelsFromEnv(modelsEnv: string): ModelInfo[] {
+  private _parseModelsFromEnv(modelsEnv: string, enforceMinimumSizeFilter = false): ModelInfo[] {
     if (!modelsEnv) {
       return [];
     }
@@ -105,6 +129,10 @@ export default class OpenAILikeProvider extends BaseProvider {
 
         // Generate a readable label from the model path
         const label = this._generateModelLabel(modelName);
+
+        if (enforceMinimumSizeFilter && isModelBelowMinimumSize(modelName, MIN_LOCAL_MODEL_SIZE_B)) {
+          continue;
+        }
 
         models.push({
           name: modelName,

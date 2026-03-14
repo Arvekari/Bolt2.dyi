@@ -35,9 +35,24 @@ import type { TextUIPart, FileUIPart, Attachment } from '@ai-sdk/ui-utils';
 import { useMCPStore } from '~/lib/stores/mcp';
 import type { LlmErrorAlertType } from '~/types/actions';
 import { collabStore } from '~/lib/stores/collab';
-import { DEFAULT_STREAM_STALL_TIMEOUT_MS, isStreamingStalled, resolveEffectiveStreamingState } from './streamingGuard';
+import {
+  getStreamingStallTimeoutMs,
+  isStreamingStalled,
+  resolveEffectiveStreamingState,
+} from './streamingGuard';
 
 const logger = createScopedLogger('Chat');
+
+const shouldRetryTransientSendError = (error: unknown) => {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error ?? '').toLowerCase();
+
+  return (
+    error instanceof TypeError ||
+    message.includes('network error') ||
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed')
+  );
+};
 
 export function Chat() {
   renderLogger.trace('Chat');
@@ -111,7 +126,8 @@ export const ChatImpl = memo(
       (project) => project.id === supabaseConn.selectedProjectId,
     );
     const supabaseAlert = useStore(workbenchStore.supabaseAlert);
-    const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled } = useSettings();
+    const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled, ollamaBridgedSystemPromptSplit } =
+      useSettings();
     const [llmErrorAlert, setLlmErrorAlert] = useState<LlmErrorAlertType | undefined>(undefined);
     const model = useStore(selectedModelStore);
     const provider = useStore(selectedProviderStore);
@@ -136,6 +152,9 @@ export const ChatImpl = memo(
       promptId,
       contextOptimization: contextOptimizationEnabled,
       chatMode,
+      ollamaBridgedSystemPromptSplit,
+      selectedProviderName: provider.name,
+      selectedModelName: model,
       designScheme,
       supabase: {
         isConnected: supabaseConn.isConnected,
@@ -147,6 +166,8 @@ export const ChatImpl = memo(
       },
       maxLLMSteps: mcpSettings.maxLLMSteps,
     };
+
+    const streamStallTimeoutMs = getStreamingStallTimeoutMs(provider.name);
 
     // Create transport once; it reads chatBodyRef.current on every request.
     const chatTransportRef = useRef<BoltChatTransport | null>(null);
@@ -345,7 +366,7 @@ export const ChatImpl = memo(
               streamStartedAtRef.current,
               lastChunkReceivedAtRef.current,
               Date.now(),
-              DEFAULT_STREAM_STALL_TIMEOUT_MS,
+              streamStallTimeoutMs,
             )
           ) {
             logger.warn('Detected stalled chat streaming state; auto-aborting stream guard path triggered');
@@ -363,7 +384,7 @@ export const ChatImpl = memo(
             });
             toast.error('Response timed out and was stopped. You can type and resend now.');
           }
-        }, DEFAULT_STREAM_STALL_TIMEOUT_MS);
+        }, streamStallTimeoutMs);
       }
 
       return () => {
@@ -371,7 +392,7 @@ export const ChatImpl = memo(
           clearTimeout(stallTimer);
         }
       };
-    }, [isLoading, fakeLoading, isStalledStream, provider.name, stop]);
+    }, [isLoading, fakeLoading, isStalledStream, provider.name, stop, streamStallTimeoutMs]);
 
     const scrollTextArea = () => {
       const textarea = textareaRef.current;
@@ -553,8 +574,86 @@ export const ChatImpl = memo(
         throw new TypeError('Chat SDK sendMessage is not available');
       }
 
-      return chatSendMessage({ text: userMessage.content });
+      try {
+        return await chatSendMessage({ text: userMessage.content });
+      } catch (error) {
+        if (!shouldRetryTransientSendError(error)) {
+          throw error;
+        }
+
+        logStore.logSystem('Transient send error detected, retrying once', {
+          component: 'Chat',
+          action: 'sendMessage:retry-once',
+          provider: provider.name,
+          model,
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return chatSendMessage({ text: userMessage.content });
+      }
     };
+
+    const buildCollabContextPrefix = useCallback(() => {
+      if (!collab.selectedProjectId) {
+        return '';
+      }
+
+      const narratives = collab.projectNarratives?.trim() || '';
+      const materials = collab.projectMaterials?.trim() || '';
+      const guides = collab.projectGuides?.trim() || '';
+      const files = collab.projectFiles || [];
+      const discussionIndex = collab.discussionIndex || [];
+
+      if (!narratives && !materials && !guides && discussionIndex.length === 0 && files.length === 0) {
+        return '';
+      }
+
+      const discussionLines = discussionIndex
+        .map((discussion, index) => `- Discussion ${index + 1}: ${discussion.title}${discussion.id === collab.selectedConversationId ? ' (active)' : ''}`)
+        .join('\n');
+
+      const fileLines = files
+        .slice(0, 5)
+        .map((file) => {
+          const snippet = file.content.trim().slice(0, 800);
+          return `- ${file.name}${file.mimeType ? ` (${file.mimeType})` : ''}\n${snippet}`;
+        })
+        .join('\n\n');
+
+      return [
+        '[Project Shared Context]',
+        narratives ? `Narratives:\n${narratives}` : '',
+        materials ? `Materials:\n${materials}` : '',
+        guides ? `Guides:\n${guides}` : '',
+        fileLines ? `Attached Reference Files:\n${fileLines}` : '',
+        discussionLines ? `Discussion Index:\n${discussionLines}` : '',
+        'Use this shared context across discussions and resolve references like "discussion 1" or "discussion 2" by the index above.',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+    }, [
+      collab.selectedProjectId,
+      collab.projectNarratives,
+      collab.projectMaterials,
+      collab.projectGuides,
+      collab.projectFiles,
+      collab.discussionIndex,
+      collab.selectedConversationId,
+    ]);
+
+    const withCollabContext = useCallback(
+      (messageBody: string) => {
+        const prefix = buildCollabContextPrefix();
+
+        if (!prefix) {
+          return messageBody;
+        }
+
+        return `${prefix}\n\n${messageBody}`;
+      },
+      [buildCollabContextPrefix],
+    );
 
     const sendMessage = async (_event: React.UIEvent, messageInput?: string) => {
       const messageContent = messageInput || draftInput;
@@ -617,7 +716,8 @@ export const ChatImpl = memo(
         setChatStarted(true);
         chatStore.setKey('started', true);
 
-        const userMessageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`;
+        const contextualContent = withCollabContext(finalMessageContent);
+        const userMessageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${contextualContent}`;
         const capturedImageDataList = [...imageDataList];
         const capturedUploadedFiles = [...uploadedFiles];
 
@@ -705,7 +805,8 @@ export const ChatImpl = memo(
 
       if (modifiedFiles !== undefined) {
         const userUpdateArtifact = filesToArtifacts(modifiedFiles, `${Date.now()}`);
-        const messageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${userUpdateArtifact}${finalMessageContent}`;
+        const contextualContent = withCollabContext(`${userUpdateArtifact}${finalMessageContent}`);
+        const messageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${contextualContent}`;
 
         const attachmentOptions =
           uploadedFiles.length > 0 ? { experimental_attachments: await filesToAttachments(uploadedFiles) } : undefined;
@@ -757,7 +858,8 @@ export const ChatImpl = memo(
 
         workbenchStore.resetAllFileModifications();
       } else {
-        const messageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${finalMessageContent}`;
+        const contextualContent = withCollabContext(finalMessageContent);
+        const messageText = `[Model: ${model}]\n\n[Provider: ${provider.name}]\n\n${contextualContent}`;
 
         const attachmentOptions =
           uploadedFiles.length > 0 ? { experimental_attachments: await filesToAttachments(uploadedFiles) } : undefined;

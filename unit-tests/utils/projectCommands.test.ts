@@ -64,7 +64,60 @@ describe('utils/projectCommands', () => {
     const result = await detectProjectCommands(files as any);
 
     expect(result.type).toBe('Static');
-    expect(result.startCommand).toContain('serve');
+    expect(result.startCommand).toContain('node -e');
+    expect(result.startCommand).toContain('Preview server listening');
+  });
+
+  it('detects nested static projects and starts server in the entry directory', async () => {
+    const files = [{ path: '/workspace/public/index.html', content: '<html></html>' }];
+    const result = await detectProjectCommands(files as any);
+
+    expect(result.type).toBe('Static');
+    expect(result.startCommand).toContain('cd public &&');
+  });
+
+  it('detects php projects and uses php preview fallback server', async () => {
+    const files = [{ path: '/workspace/index.php', content: '<?php echo "hi"; ?><html><body>Hello</body></html>' }];
+    const result = await detectProjectCommands(files as any);
+
+    expect(result.type).toBe('PHP');
+    expect(result.startCommand).toContain('node -e');
+    expect(result.startCommand).toContain('php-static-fallback');
+    expect(result.followupMessage).toContain('PHP-style project');
+  });
+
+  it('detects nested pnpm project and prefixes directory for commands', async () => {
+    const files = [
+      {
+        path: '/workspace/frontend/package.json',
+        content: JSON.stringify({
+          scripts: { dev: 'vite' },
+          dependencies: { react: '^18.0.0' },
+        }),
+      },
+      {
+        path: '/workspace/frontend/pnpm-lock.yaml',
+        content: 'lockfileVersion: 9.0',
+      },
+    ];
+
+    const result = await detectProjectCommands(files as any);
+    expect(result.type).toBe('Node.js');
+    expect(result.startCommand).toBe('cd frontend && pnpm run dev');
+    expect(result.setupCommand).toContain('cd frontend');
+    expect(result.setupCommand).toContain('pnpm install --frozen-lockfile=false');
+  });
+
+  it('detects FastAPI project from main.py', async () => {
+    const files = [
+      { path: '/workspace/requirements.txt', content: 'fastapi\nuvicorn\n' },
+      { path: '/workspace/main.py', content: 'from fastapi import FastAPI\napp = FastAPI()\n' },
+    ];
+
+    const result = await detectProjectCommands(files as any);
+    expect(result.type).toBe('Python');
+    expect(result.setupCommand).toBe('python -m pip install -r requirements.txt');
+    expect(result.startCommand).toBe('uvicorn main:app --host 0.0.0.0 --port 8000');
   });
 
   it('creates assistant command message when commands exist', () => {

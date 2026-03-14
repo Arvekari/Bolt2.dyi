@@ -139,7 +139,19 @@ vi.mock('../../../app/lib/stores/supabase', () => ({
 }));
 
 vi.mock('../../../app/lib/stores/collab', () => ({
-  collabStore: { get: () => ({ branchMode: 'main', selectedConversationId: undefined }), subscribe: () => () => {} },
+  collabStore: {
+    get: () => ({
+      branchMode: 'main',
+      selectedProjectId: undefined,
+      selectedConversationId: undefined,
+      projectNarratives: '',
+      projectMaterials: '',
+      projectGuides: '',
+      projectFiles: [],
+      discussionIndex: [],
+    }),
+    subscribe: () => () => {},
+  },
 }));
 
 vi.mock('../../../app/lib/stores/mcp', () => ({
@@ -240,5 +252,44 @@ describe('app/components/chat/Chat.client.tsx', () => {
     expect(sendMessageMock.mock.calls[0][0]).toMatchObject({
       text: expect.stringContaining('hello world'),
     });
+  });
+
+  it('includes project guides and attached file references in sent context', async () => {
+    const collabModule = await import('../../../app/lib/stores/collab');
+    vi.spyOn(collabModule.collabStore, 'get').mockReturnValue({
+      branchMode: 'main',
+      selectedProjectId: 'project-1',
+      selectedConversationId: undefined,
+      projectNarratives: 'Platform modernization goals',
+      projectMaterials: 'Shared API contract v2',
+      projectGuides: 'Always reuse checkout flow components',
+      projectFiles: [{ name: 'pricing-rules.md', mimeType: 'text/markdown', content: 'Tiered pricing rules', size: 20 }],
+      discussionIndex: [
+        { id: 'discussion-1', title: 'Discovery' },
+        { id: 'discussion-2', title: 'Implementation' },
+      ],
+    } as any);
+
+    render(
+      <ChatImpl
+        description="test"
+        initialMessages={[] as any}
+        storeMessageHistory={vi.fn(async () => {})}
+        importChat={vi.fn(async () => {})}
+        exportChat={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('send'));
+
+    await waitFor(() => {
+      expect(sendMessageMock).toHaveBeenCalledTimes(1);
+    });
+
+    const text = sendMessageMock.mock.calls[0][0].text;
+    expect(text).toContain('[Project Shared Context]');
+    expect(text).toContain('Always reuse checkout flow components');
+    expect(text).toContain('pricing-rules.md');
+    expect(text).toContain('Discussion 1: Discovery');
   });
 });

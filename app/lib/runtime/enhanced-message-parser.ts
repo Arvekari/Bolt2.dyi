@@ -69,6 +69,12 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
 
     // Optimized regex patterns with better performance
     const patterns = [
+      // Pattern 0: HTML fenced blocks without explicit filename (common Ollama output)
+      {
+        regex: /```html\s*\n([\s\S]*?)```/gi,
+        type: 'html_block',
+      },
+
       // Pattern 1: File path followed by code block (most common, check first)
       {
         regex: /(?:^|\n)([\/\w\-\.]+\.\w+):?\s*\n+```(\w*)\n([\s\S]*?)```/gim,
@@ -97,7 +103,7 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       // Pattern 5: Structured files (package.json, components)
       {
         regex:
-          /```(?:json|jsx?|tsx?|html?|vue|svelte)\n(\{[\s\S]*?"(?:name|version|scripts|dependencies|devDependencies)"[\s\S]*?\}|<\w+[^>]*>[\s\S]*?<\/\w+>[\s\S]*?)```/gi,
+          /```(json|jsx?|tsx?|html?|vue|svelte)\n(\{[\s\S]*?"(?:name|version|scripts|dependencies|devDependencies)"[\s\S]*?\}|<!doctype html>[\s\S]*?<\/html>|<\w+[^>]*>[\s\S]*?<\/\w+>[\s\S]*?)```/gi,
         type: 'structured_file',
       },
     ];
@@ -117,11 +123,14 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
         let content: string;
 
         // Extract based on pattern type
-        if (pattern.type === 'comment_filename') {
+        if (pattern.type === 'html_block') {
+          content = args[0];
+          language = 'html';
+          filePath = '/index.html';
+        } else if (pattern.type === 'comment_filename') {
           [language, filePath, content] = args;
         } else if (pattern.type === 'structured_file') {
-          content = args[0];
-          language = pattern.regex.source.includes('json') ? 'json' : 'jsx';
+          [language, content] = args;
           filePath = this._inferFileNameFromContent(content, language);
         } else {
           // file_path, explicit_create, in_filename patterns
@@ -148,7 +157,11 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
         if (!this._hasFileContext(enhanced, match)) {
           // If no clear file context, skip unless it's an explicit file pattern
           const isExplicitFilePattern =
-            pattern.type === 'explicit_create' || pattern.type === 'comment_filename' || pattern.type === 'file_path';
+            pattern.type === 'html_block' ||
+            pattern.type === 'explicit_create' ||
+            pattern.type === 'comment_filename' ||
+            pattern.type === 'file_path' ||
+            pattern.type === 'structured_file';
 
           if (!isExplicitFilePattern) {
             return match; // Return original if no context
@@ -198,7 +211,126 @@ export class EnhancedStreamingMessageParser extends StreamingMessageParser {
       return wrapped;
     });
 
+    enhanced = this._detectAndWrapUnfencedStructuredFiles(messageId, enhanced, processed);
+
     return enhanced;
+  }
+
+  private _detectAndWrapUnfencedStructuredFiles(messageId: string, input: string, processed: Set<string>): string {
+    const lines = input.split('\n');
+    const segments: Array<{ start: number; end: number; filePath: string; content: string }> = [];
+
+    const unwrapPathLine = (line: string) => line.trim().replace(/^\*\*|\*\*$/g, '').replace(/[`'"]+/g, '').trim();
+    const isAbsoluteProjectFilePath = (line: string) => {
+      const normalized = unwrapPathLine(line);
+      return /^\/home\/project\/[\/\w\-.]+\.\w+$/.test(normalized);
+    };
+
+    const findNextNonEmptyLine = (startIndex: number) => {
+      for (let index = startIndex; index < lines.length; index++) {
+        if (lines[index].trim().length > 0) {
+          return index;
+        }
+      }
+
+      return -1;
+    };
+
+    const collectJsonBlock = (startIndex: number) => {
+      let braceDepth = 0;
+      let started = false;
+
+      for (let index = startIndex; index < lines.length; index++) {
+        const line = lines[index];
+
+        for (const char of line) {
+          if (char === '{') {
+            braceDepth += 1;
+            started = true;
+          } else if (char === '}') {
+            braceDepth -= 1;
+          }
+        }
+
+        if (started && braceDepth === 0) {
+          return index;
+        }
+      }
+
+      return -1;
+    };
+
+    const collectHtmlBlock = (startIndex: number) => {
+      for (let index = startIndex; index < lines.length; index++) {
+        if (/<\/html>\s*$/i.test(lines[index].trim())) {
+          return index;
+        }
+      }
+
+      return -1;
+    };
+
+    for (let index = 0; index < lines.length; index++) {
+      if (!isAbsoluteProjectFilePath(lines[index])) {
+        continue;
+      }
+
+      const nextContentIndex = findNextNonEmptyLine(index + 1);
+
+      if (nextContentIndex === -1 || lines[nextContentIndex].trim().startsWith('```')) {
+        continue;
+      }
+
+      const nextLine = lines[nextContentIndex].trim();
+      let endIndex = -1;
+
+      if (nextLine.startsWith('{')) {
+        endIndex = collectJsonBlock(nextContentIndex);
+      } else if (/^<!doctype html>/i.test(nextLine) || /^<html[\s>]/i.test(nextLine)) {
+        endIndex = collectHtmlBlock(nextContentIndex);
+      }
+
+      if (endIndex === -1) {
+        continue;
+      }
+
+      const rawBlock = lines.slice(index, endIndex + 1).join('\n');
+      const blockHash = this._hashBlock(rawBlock);
+
+      if (processed.has(blockHash)) {
+        continue;
+      }
+
+      processed.add(blockHash);
+      segments.push({
+        start: index,
+        end: endIndex,
+        filePath: this._normalizeFilePath(unwrapPathLine(lines[index]).replace(/^\/home\/project/, '')),
+        content: lines.slice(nextContentIndex, endIndex + 1).join('\n').trim(),
+      });
+
+      index = endIndex;
+    }
+
+    if (segments.length === 0) {
+      return input;
+    }
+
+    const output: string[] = [];
+    let cursor = 0;
+
+    for (const segment of segments) {
+      output.push(lines.slice(cursor, segment.start).join('\n'));
+
+      const artifactId = `artifact-${messageId}-${this._artifactCounter++}`;
+      output.push(this._wrapInArtifact(artifactId, segment.filePath, segment.content));
+      logger.debug(`Auto-wrapped unfenced structured file: ${segment.filePath}`);
+      cursor = segment.end + 1;
+    }
+
+    output.push(lines.slice(cursor).join('\n'));
+
+    return output.filter((part, idx) => !(part === '' && idx !== output.length - 1)).join('\n');
   }
 
   private _wrapInArtifact(artifactId: string, filePath: string, content: string): string {
@@ -299,6 +431,14 @@ ${content.trim()}
   }
 
   private _inferFileNameFromContent(content: string, language: string): string {
+    if (language.toLowerCase() === 'html' || /<!doctype html>|<html[\s>]/i.test(content)) {
+      return '/index.html';
+    }
+
+    if (language.toLowerCase() === 'json') {
+      return '/package.json';
+    }
+
     // Try to infer component name from content
     const componentMatch = content.match(
       /(?:function|class|const|export\s+default\s+function|export\s+function)\s+(\w+)/,

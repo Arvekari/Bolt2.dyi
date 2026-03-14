@@ -1,4 +1,4 @@
-site_name: Bolt2.dyi Docs
+site_name: Opurion Docs
 site_dir: ../site
 docs_dir: .
 exclude_docs: /README.md
@@ -33,12 +33,16 @@ theme:
     repo: fontawesome/brands/github
   # logo: assets/logo.png
   # favicon: assets/logo.png
-repo_name: Bolt2.dyi
-repo_url: https://github.com/Bolt2-dyi/Bolt2.dyi
+repo_name: Opurion
+repo_url: https://github.com/Arvekari/Opurion
 edit_uri: ''
 
 nav:
   - Home: index.md
+  - AI:
+      - Functions:
+          - Overview: ai/functions/README.md
+          - Opurion Execution Protocol: ai/functions/bolt-protocol.md
   - Setup:
       - Installation: setup/installation.md
       - Docker:
@@ -101,17 +105,17 @@ extra:
   generator: false
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/Bolt2-dyi/Bolt2.dyi
-      name: Bolt2.dyi
+      link: https://github.com/Arvekari/Opurion
+      name: Opurion
     - icon: fontawesome/brands/discourse
       link: https://thinktank.ottomator.ai/
-      name: Bolt2.dyi Discourse
+      name: Opurion Discourse
     - icon: fontawesome/brands/x-twitter
-      link: https://x.com/bolt2_dyi
-      name: Bolt2.dyi on X
+      link: https://x.com/opurion
+      name: Opurion on X
     - icon: fontawesome/brands/bluesky
-      link: https://bsky.app/profile/bolt2.dyi
-      name: Bolt2.dyi on Bluesky
+      link: https://bsky.app/profile/opurion
+      name: Opurion on Bluesky
 
 markdown_extensions:
   - pymdownx.highlight:

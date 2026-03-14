@@ -26,7 +26,7 @@ export function HeaderActionButtons({ chatStarted }: HeaderActionButtonsProps) {
         <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden text-sm">
           <button
             onClick={() =>
-              window.open('https://github.com/stackblitz-labs/bolt.diy/issues/new?template=bug_report.yml', '_blank')
+              window.open('https://github.com/stackblitz-labs/Opurion/issues/new?template=bug_report.yml', '_blank')
             }
             className={`rounded-l-md ${uiButtonClassTokens.primaryActionCompact} gap-1.5`}
             title="Report Bug"

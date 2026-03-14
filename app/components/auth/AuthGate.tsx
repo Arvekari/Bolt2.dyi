@@ -34,12 +34,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isSignupMode, setIsSignupMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   const [dbProvider, setDbProvider] = useState<SetupDbProvider>('sqlite');
   const [postgresUrl, setPostgresUrl] = useState('');
   const [savingSetup, setSavingSetup] = useState(false);
+
+  const isSignupMode = !!session?.requireSignup;
 
   const loadSession = async () => {
     setLoading(true);
@@ -48,11 +49,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/auth/session');
       const data = (await response.json()) as SessionResponse;
       setSession(data);
-      setIsSignupMode(data.requireSignup);
       setSetupComplete(!data.requireSignup);
     } catch {
       setSession({ authenticated: false, requireSignup: true, user: null });
-      setIsSignupMode(true);
       setSetupComplete(false);
     } finally {
       setLoading(false);
@@ -161,9 +160,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-xl p-5 flex flex-col gap-3">
-        <img src="/logo.svg" alt="Bolt2.dyi" className="h-10 w-auto self-start" />
+    <div className="min-h-screen w-full flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <img src="/logo-opurion-full.png" alt="Opurion" className="w-full h-auto mb-4" />
+        <div className="bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor rounded-xl p-5 flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-bolt-elements-textPrimary">{title}</h2>
         <p className="text-sm text-bolt-elements-textSecondary">
           {isSignupMode
@@ -208,31 +208,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {!session?.requireSignup && (
-          <div className="flex gap-2 text-xs">
-            <button
-              className={`px-3 py-1.5 rounded-md border transition-colors ${
-                !isSignupMode
-                  ? 'border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                  : 'border-bolt-elements-borderColor bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary'
-              }`}
-              onClick={() => setIsSignupMode(false)}
-            >
-              Sign in
-            </button>
-            <button
-              className={`px-3 py-1.5 rounded-md border transition-colors ${
-                isSignupMode
-                  ? 'border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                  : 'border-bolt-elements-borderColor bg-bolt-elements-background-depth-3 text-bolt-elements-textSecondary'
-              }`}
-              onClick={() => setIsSignupMode(true)}
-            >
-              Create account
-            </button>
-          </div>
-        )}
-
         <form
           className="w-full flex flex-col gap-3"
           onSubmit={(event) => {
@@ -264,6 +239,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             {submitting ? 'Please wait…' : isSignupMode ? 'Create account' : 'Log in'}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

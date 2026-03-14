@@ -1,8 +1,8 @@
-# Contributing to Bolt2.dyi
+# Contributing to Opurion
 
-Thank you for contributing to **Bolt2.dyi**.
+Thank you for contributing to **Opurion**.
 
-Bolt2.dyi started as a fork of the original `bolt.diy`, but it is now evolving into something more structured: a layered, modular, and maintainable AI workspace platform with a modernized UX, broader provider support, stronger persistence boundaries, and a clearer long-term architecture.
+Opurion started as a fork of the original `bolt.diy`, but it is now evolving into something more structured: a layered, modular, and maintainable AI workspace platform with a modernized UX, broader provider support, stronger persistence boundaries, and a clearer long-term architecture.
 
 This document explains how to contribute in a way that supports that direction.
 
@@ -12,11 +12,11 @@ This document explains how to contribute in a way that supports that direction.
 
 First, thank you to the original **bolt.diy** project and its contributors for the foundation this fork builds on.
 
-Bolt2.dyi would not exist without that work.
+Opurion would not exist without that work.
 
 Second, thank you to everyone who has already contributed ideas, testing, bug reports, architectural cleanup, UI changes, provider support updates, and regression fixes for this fork.
 
-A lot of meaningful work has already gone into Bolt2.dyi, including:
+A lot of meaningful work has already gone into Opurion, including:
 
 - restructuring the project toward a layered architecture
 - expanding model and provider support
@@ -29,9 +29,9 @@ Those contributions matter, and they are appreciated.
 
 ---
 
-## What Bolt2.dyi Is
+## What Opurion Is
 
-Bolt2.dyi is a structured and modular fork of `bolt.diy`.
+Opurion is a structured and modular fork of `bolt.diy`.
 
 The project direction is no longer just a small chat UI fork. It is moving toward a more complete AI workspace and platform model with:
 
@@ -50,7 +50,7 @@ Contributions should support that direction.
 
 ## Architectural Direction
 
-Bolt2.dyi follows a layered dependency model:
+Opurion follows a layered dependency model:
 
 ```text
 ui → platform → core → integrations → infrastructure
@@ -101,7 +101,7 @@ Less helpful contributions usually look like this:
 
 ### 1. UX and UI Improvements
 
-Bolt2.dyi has already moved toward a more modern workspace pattern with:
+Opurion has already moved toward a more modern workspace pattern with:
 
 - persistent model selection in the header
 - a more structured sidebar
@@ -132,7 +132,7 @@ But provider logic must remain well-structured and not leak random special cases
 
 ### 3. Reliability and Runtime Fixes
 
-Bolt2.dyi has already invested real work into:
+Opurion has already invested real work into:
 
 - streaming stability
 - timeout handling
@@ -202,8 +202,8 @@ Use the existing structure unless there is a strong architectural reason not to.
 Clone the repository:
 
 ```bash
-git clone https://github.com/Arvekari/Bolt2.dyi.git
-cd Bolt2.dyi
+git clone https://github.com/Arvekari/Opurion.git
+cd Opurion
 ```
 
 Install dependencies:
@@ -321,7 +321,7 @@ Please avoid PRs that:
 
 ## UX Contribution Guidance
 
-Bolt2.dyi is actively improving its UX.
+Opurion is actively improving its UX.
 
 When contributing to the frontend, think in terms of:
 
@@ -419,7 +419,7 @@ Feature suggestions are welcome, especially when they include:
 - how the feature fits the current project direction
 - whether the feature should be optional or core
 
-Bolt2.dyi benefits more from thoughtful platform evolution than from random feature accumulation.
+Opurion benefits more from thoughtful platform evolution than from random feature accumulation.
 
 ---
 
@@ -428,7 +428,7 @@ Bolt2.dyi benefits more from thoughtful platform evolution than from random feat
 Please contribute with respect for:
 
 - the original `bolt.diy` foundation
-- the refactoring and restructuring already done in Bolt2.dyi
+- the refactoring and restructuring already done in Opurion
 - the UX modernization already underway
 - the testing and runtime hardening already in place
 - future maintainability
@@ -439,17 +439,17 @@ This project is still evolving, but it already has a real direction. Contributio
 
 ## Maintainer
 
-Bolt2.dyi is maintained by:
+Opurion is maintained by:
 
 **Markku Arvekari**<br>
-Mail:   markku.arvekari@gmail.com<br>
+Mail: markku.arvekari@gmail.com<br>
 GitHub: [@Arvekari](https://github.com/Arvekari)
 
 ---
 
 ## Final Thank You
 
-If you contribute to Bolt2.dyi, thank you.
+If you contribute to Opurion, thank you.
 
 This project is being shaped through practical iteration, architectural cleanup, UX modernization, runtime hardening, and better long-term structure.
 

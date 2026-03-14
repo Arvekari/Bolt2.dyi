@@ -1,6 +1,6 @@
 # Unit Tests Guide
 
-This folder contains project-level unit tests for `Bolt2.dyi`.
+This folder contains project-level unit tests for `Opurion`.
 
 ## Goals
 

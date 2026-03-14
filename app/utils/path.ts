@@ -8,6 +8,7 @@ import pathBrowserify from 'path-browserify';
  */
 export const path = {
   join: (...paths: string[]): string => pathBrowserify.join(...paths),
+  resolve: (...paths: string[]): string => pathBrowserify.resolve(...paths),
   dirname: (path: string): string => pathBrowserify.dirname(path),
   basename: (path: string, ext?: string): string => pathBrowserify.basename(path, ext),
   extname: (path: string): string => pathBrowserify.extname(path),

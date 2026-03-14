@@ -3,7 +3,7 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import type { JSONValue, Message } from 'ai';
-import React, { type RefCallback, useEffect, useMemo, useState } from 'react';
+import React, { type RefCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
@@ -23,7 +23,7 @@ import DeployChatAlert from '~/components/deploy/DeployAlert';
 import ChatAlert from './ChatAlert';
 import type { ModelInfo } from '~/lib/modules/llm/types';
 import ProgressCompilation from './ProgressCompilation';
-import type { AgentRunData, ProgressAnnotation } from '~/types/context';
+import type { AgentRunData, DebugStreamEvent, ProgressAnnotation } from '~/types/context';
 import { AgentRunStatusPanel } from './AgentRunStatusPanel';
 import { SupabaseChatAlert } from '~/components/chat/SupabaseAlert';
 import { expoUrlAtom } from '~/lib/stores/qrCodeStore';
@@ -37,6 +37,7 @@ import { syncServerPersistence } from '~/lib/persistence/serverPersistence.clien
 import { availableProvidersStore, availableModelsStore } from '~/lib/stores/model';
 import { supabaseConnection } from '~/lib/stores/supabase';
 import { workbenchStore } from '~/lib/stores/workbench';
+import { logStore } from '~/lib/stores/logs';
 import { toast } from 'react-toastify';
 
 const TEXTAREA_MIN_HEIGHT = 76;
@@ -149,6 +150,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
     const [progressAnnotations, setProgressAnnotations] = useState<ProgressAnnotation[]>([]);
     const [agentRun, setAgentRun] = useState<AgentRunData['run'] | null>(null);
+    const processedDebugEventIdsRef = useRef<Set<string>>(new Set());
     const expoUrl = useStore(expoUrlAtom);
     const supabaseConn = useStore(supabaseConnection);
     const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -173,6 +175,31 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
 
         if (agentRunUpdates.length > 0) {
           setAgentRun(agentRunUpdates.at(-1)?.run || null);
+        }
+
+        const debugStreamEvents = data.filter(
+          (x) => typeof x === 'object' && (x as any).type === 'debugStream',
+        ) as DebugStreamEvent[];
+
+        for (const event of debugStreamEvents) {
+          if (!event?.eventId || processedDebugEventIdsRef.current.has(event.eventId)) {
+            continue;
+          }
+
+          processedDebugEventIdsRef.current.add(event.eventId);
+          logStore.logSystem(`[stream-debug] ${event.message}`, {
+            component: 'ChatStream',
+            action: event.source,
+            phase: event.phase,
+            requestId: event.requestId,
+            clientRequestId: event.clientRequestId,
+            provider: event.provider,
+            model: event.model,
+            normalizedArtifactApplied: event.normalizedArtifactApplied,
+            originalResponsePreview: event.originalResponsePreview,
+            retryInstructionPreview: event.retryInstructionPreview,
+            retryResponsePreview: event.retryResponsePreview,
+          });
         }
       }
     }, [data]);
@@ -534,7 +561,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       paddingLeft: '0',
                     }}
                   >
-                    <img src="/logo.svg" alt="Bolt2.dyi" style={{ height: '40px', width: 'auto' }} />
+                    <img src="/logo-opurion-full.png" alt="Opurion" style={{ height: '40px', width: 'auto' }} />
                   </div>
 
                   <ChatBox {...chatBoxProps} />

@@ -156,6 +156,16 @@ describe('StreamingMessageParser', () => {
     ])('should correctly parse chunks and strip out bolt artifacts (%#)', (input, expected) => {
       runTest(input, expected);
     });
+
+    it('should parse HTML-escaped bolt tags and execute actions', () => {
+      runTest(
+        'Before &lt;boltArtifact title="Some title" id="artifact_1"&gt;&lt;boltAction type="shell"&gt;npm install&lt;/boltAction&gt;&lt;/boltArtifact&gt; After',
+        {
+          output: 'Before  After',
+          callbacks: { onArtifactOpen: 1, onArtifactClose: 1, onActionOpen: 1, onActionClose: 1 },
+        },
+      );
+    });
   });
 });
 
@@ -226,6 +236,46 @@ describe('EnhancedStreamingMessageParser', () => {
 
     expect(callbacks.onArtifactOpen).not.toHaveBeenCalled();
     expect(callbacks.onActionOpen).not.toHaveBeenCalled();
+  });
+
+  it('should auto-wrap structured HTML code blocks without explicit filename context', () => {
+    const callbacks = {
+      onArtifactOpen: vi.fn(),
+      onArtifactClose: vi.fn(),
+      onActionOpen: vi.fn(),
+      onActionClose: vi.fn(),
+    };
+
+    const parser = new EnhancedStreamingMessageParser({
+      callbacks,
+    });
+
+    const input = `Sure, here's a web page:\n\n\
+\
+\
+\`\`\`html
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Bolt</title></head>
+<body><h1>Hello</h1></body>
+</html>
+\`\`\``;
+
+    parser.parse('test_html_structured_1', input);
+
+    expect(callbacks.onArtifactOpen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'index.html',
+      }),
+    );
+    expect(callbacks.onActionOpen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: expect.objectContaining({
+          type: 'file',
+          filePath: '/index.html',
+        }),
+      }),
+    );
   });
 
   describe('AI Model Output Patterns Integration Tests', () => {

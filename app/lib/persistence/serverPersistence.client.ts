@@ -1,7 +1,12 @@
 export async function syncServerPersistence(payload: {
   apiKeys?: Record<string, string>;
   providerSettings?: Record<string, any>;
-  customPrompt?: { enabled?: boolean; instructions?: string; mode?: 'append' | 'replace' };
+  customPrompt?: {
+    enabled?: boolean;
+    instructions?: string;
+    mode?: 'append' | 'replace';
+    promptLibraryOverrides?: Record<string, string>;
+  };
   dbConfig?: { provider?: 'sqlite' | 'postgres'; postgresUrl?: string };
 }) {
   try {

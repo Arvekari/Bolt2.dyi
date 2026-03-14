@@ -18,6 +18,7 @@ import ModelCard from './ModelCard';
 import { OLLAMA_API_URL } from './types';
 import type { OllamaModel, LMStudioModel } from './types';
 import { Cpu, Server, BookOpen, Activity, PackageOpen, Monitor, Loader2, RotateCw, ExternalLink } from 'lucide-react';
+import { isModelBelowMinimumSize, MIN_LOCAL_MODEL_SIZE_B } from '~/lib/common/system-prompt-profiles';
 
 // Type definitions
 type ViewMode = 'dashboard' | 'guide' | 'status';
@@ -121,11 +122,19 @@ export default function LocalProvidersTab() {
       }
 
       const data = (await response.json()) as { models: OllamaModel[] };
+      const filteredModels = data.models.filter((model) => {
+        const sizeSource = model.details?.parameter_size || model.name;
+        return !isModelBelowMinimumSize(sizeSource, MIN_LOCAL_MODEL_SIZE_B);
+      });
+
+      const modelsToExpose = filteredModels.length === 0 && data.models.length > 0 ? data.models : filteredModels;
+
       setOllamaModels(
-        data.models.map((model) => ({
-          ...model,
-          status: 'idle' as const,
-        })),
+        modelsToExpose
+          .map((model) => ({
+            ...model,
+            status: 'idle' as const,
+          })),
       );
     } catch {
       console.error('Error fetching Ollama models');

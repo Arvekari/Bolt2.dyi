@@ -93,7 +93,7 @@ services:
     profiles: ['development', 'default']
 
   app-prebuild:
-    image: ghcr.io/bolt2-dyi/bolt2.dyi:latest
+    image: ghcr.io/arvekari/opurion:latest
     ports:
       - '5173:5173'
     environment:

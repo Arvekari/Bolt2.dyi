@@ -13,7 +13,7 @@ export const action: ActionFunction = async ({ request }) => {
         ok: false,
         canAutoUpdate: false,
         message:
-          'Automatic self-update is not available in this runtime. Please update manually from Arvekari/Bolt2.dyi.',
+          'Automatic self-update is not available in this runtime. Please update manually from Arvekari/Opurion.',
         targetVersion: body.targetVersion || null,
         instructions: [
           '1. Navigate to the project directory',

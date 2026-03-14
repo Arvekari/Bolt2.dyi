@@ -1,4 +1,4 @@
--- External PostgreSQL schema for Bolt2.dyi PostgREST backend
+-- External PostgreSQL schema for Opurion PostgREST backend
 -- Apply this in your own PostgreSQL instance (outside this repository/package).
 
 create table if not exists app_memory (

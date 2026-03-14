@@ -2,15 +2,38 @@ import { map } from 'nanostores';
 
 export type CollabBranchMode = 'user' | 'main';
 
+export type CollabDiscussionIndexItem = {
+  id: string;
+  title: string;
+};
+
+export type CollabProjectFileItem = {
+  id?: string;
+  name: string;
+  mimeType?: string;
+  content: string;
+  size?: number;
+};
+
 export const collabStore = map<{
   selectedProjectId?: string;
   selectedConversationId?: string;
   branchMode: CollabBranchMode;
+  projectNarratives: string;
+  projectMaterials: string;
+  projectGuides: string;
+  projectFiles: CollabProjectFileItem[];
+  discussionIndex: CollabDiscussionIndexItem[];
   refreshToken: number;
 }>({
   selectedProjectId: undefined,
   selectedConversationId: undefined,
   branchMode: 'user',
+  projectNarratives: '',
+  projectMaterials: '',
+  projectGuides: '',
+  projectFiles: [],
+  discussionIndex: [],
   refreshToken: 0,
 });
 
@@ -24,6 +47,33 @@ export function setCollabConversation(conversationId?: string) {
 
 export function setCollabBranchMode(mode: CollabBranchMode) {
   collabStore.setKey('branchMode', mode);
+}
+
+export function setCollabProjectContext(context: {
+  narratives?: string;
+  materials?: string;
+  guides?: string;
+  files?: CollabProjectFileItem[];
+}) {
+  if (context.narratives !== undefined) {
+    collabStore.setKey('projectNarratives', context.narratives);
+  }
+
+  if (context.materials !== undefined) {
+    collabStore.setKey('projectMaterials', context.materials);
+  }
+
+  if (context.guides !== undefined) {
+    collabStore.setKey('projectGuides', context.guides);
+  }
+
+  if (context.files !== undefined) {
+    collabStore.setKey('projectFiles', context.files);
+  }
+}
+
+export function setCollabDiscussionIndex(items: CollabDiscussionIndexItem[]) {
+  collabStore.setKey('discussionIndex', items);
 }
 
 export function bumpCollabRefresh() {

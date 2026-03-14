@@ -1,8 +1,8 @@
 # Changelog
 
-All notable changes to bolt2.dyi are documented in this file.
+All notable changes to Opurion are documented in this file.
 
-This changelog is specific to the bolt2.dyi fork and does not track upstream bolt.diy release notes.
+This changelog is specific to the Opurion fork and does not track upstream bolt.diy release notes.
 
 The format is inspired by Keep a Changelog and follows semantic versioning where practical.
 
@@ -10,19 +10,42 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Added
 
-- None.
+- Sidebar `Projects` workspace is now a functional collaboration folder system with project creation/selection, discussion creation/selection, persistent shared narratives/materials, and explicit discussion index controls for cross-discussion workflows.
+- Sidebar `Artifacts` workspace now includes a reusable marketplace-style library UI with create form, type/visibility metadata, search/filtering, visual cards (with optional preview image URL), and one-click content copy for reuse.
+- Project creation now supports guide text plus shared attached reference files (text/code/spec assets), stored as project-scoped database records so collaborators in the same shared project see the same resources.
 
 ### Changed
 
-- None.
+- Ongoing execution discipline is now enforced in active reliability loops: `.ongoing-work.md` and `changelog.md` are updated before and after each substantive edit/validation phase so state and release notes remain continuously synchronized.
+- Outgoing chat payloads now include active project shared context and discussion index metadata from collaboration state, enabling references like “discussion 1” across project discussions to remain context-aware.
+- Outgoing chat payloads now also include project guides and attached shared reference files from the selected shared project, so collaborator-added project resources influence later discussions consistently.
+- Static auto-preview inference now uses a built-in Node HTTP server instead of relying on `npx serve`, improving startup reliability for non-Node sites and nested static roots such as `public/index.html`.
+- Build-mode cloud-provider behavior now streams prose progressively (instead of full buffering) while still appending missing executable project essentials when needed; regression expectations were updated in `unit-tests/routes/api.chat.streaming-e2e.test.ts`.
+- Build-mode retry orchestration now pins resolved provider/model (`forcedProvider`/`forcedModel`) across initial, continuation, and recovery-round `streamText` calls to keep Ollama recovery loops on the intended local provider.
+- Live smoke verification now treats local Ollama separately from cloud providers: `scripts/smoke-ai-modules.mjs` supports env-gated Ollama checks via `OLLAMA_API_BASE_URL`, prefers local models like `mistral:7b` when available, and uses longer local-model timeout budgets so slower 3060 Ti class inference does not fail with cloud-style assumptions.
+- Settings → System Prompt now supports model-size prompt profiles (`1.3B`, `6.7B`, `16B`, `64B`, `128B`, `192B`, `236B`) with table-based `Select`, `Append`, `Replace`, and `Edit` actions, automatic profile selection by active model size, and live token budget visibility (max / used / left).
+- Preview launch reliability was improved for existing projects: command inference now supports nested package roots, lockfile-aware package manager selection, and Python project entrypoint detection; opening Preview can auto-run safe inferred setup/start commands when no active preview port exists.
+- Build-mode response enforcement now appends a non-prunable executable-output contract after prompt compaction in `app/lib/.server/llm/stream-text.ts`, keeping implementation behavior strict in build mode for cloud and local providers.
+- Default fine-tuned system prompt design guidance now explicitly biases page-generation requests toward modern digital-transformation layouts and richer informational density (capabilities/KPI/process/architecture/security/CTA sections) in `app/lib/common/prompts/new-prompt.ts`.
 
 ### Fixed
 
+- Full-suite prompt-profile validation now matches the current local-model policy: `unit-tests/common/system-prompt-profiles.test.ts` was updated so custom prompt profile eligibility starts at `14B`, consistent with the removal of `13B` and smaller model support from settings and prompt-profile selection.
+- Chat debug panel controls and panel rendering were removed from the chat message surface (`app/components/chat/Messages.client.tsx`) per UX simplification request.
+- Chat send reliability for transient provider/network failures improved: `app/components/chat/Chat.client.tsx` now retries once automatically on network/fetch-class send errors before surfacing failure.
+- Auto-preview now covers PHP/http-server style projects as well: `app/utils/projectCommands.ts` detects PHP entry files and starts a built-in preview server that serves a PHP-template fallback HTML shell when native PHP execution is unavailable, enabling preview verification instead of a dead `No preview available` state.
+- Build-mode recovery no longer treats non-runnable retry text as acceptable final output: raw pass-through is now gated to executable-safe content patterns (file actions, full HTML, or recognized fenced code), forcing synthesis paths for incomplete artifact-like responses.
+- Added pinning regression assertion coverage in `unit-tests/routes/api.chat.streaming-e2e.test.ts` to prevent future provider/model drift during Ollama multi-round recovery.
+- Local Ollama and other small-model paths now preserve high-priority system directives instead of truncating them away: custom narrative/system prompt content is injected ahead of the base prompt, and prompt compaction now keeps both leading and trailing directive sections so smaller local models still receive personalization and `<boltArtifact>` response rules.
 - Docker production build now resolves `platform/security/authz.ts`, `platform/security/jwt.ts`, and `platform/users/service.ts` correctly: missing platform source files were committed and platform app-wrapper re-exports were changed from wildcard `export *` to explicit named exports to fix Rollup production bundling.
 - `unit-tests/components/chat/ChatBox.test.ts` and `Chat.client.test.ts` JSX syntax removed (JSX tests remain in `.test.tsx` counterparts); `.ts` files are now non-JSX placeholders to satisfy test-mapper without breaking esbuild.
 - Ollama chat execution now uses OpenAI-compatible `/v1` inference path with explicit `chat` endpoint selection (avoids Responses API parsing mismatch / `Failed to process successful response`) while preserving existing Ollama provider configuration/UI and Ollama-native model discovery via `/api/tags`.
 - AI SDK streaming in Node/Remix runtime now forces a compatibility `TextDecoderStream` implementation backed directly by the active global `ReadableStream`/`WritableStream` constructors, preventing mixed Web Stream implementation crashes (`First parameter has member 'readable' that is not a ReadableStream`) for OpenAI Responses and Ollama chat streaming.
 - OpenAI-compatible providers now normalize event-stream `fetch` bodies to the active runtime stream implementation before AI SDK parsing, preventing mixed-stream failures across OpenAI (`/v1/responses`), Ollama (`/v1/chat/completions`), and OpenAI-like local providers.
+- Build-mode regressions where responses became chatty/non-executable after first turn were fixed across local and cloud paths: `app/routes/api.chat.ts` now applies provider-agnostic executable fallback synthesis when recoverable code is present.
+- Partial React build outputs now recover to professional runnable scaffolds: when existing artifacts include React entry files but miss essentials, missing `/package.json`, `/index.html`, and preview/start action are synthesized automatically via `synthesizeMissingProjectEssentialsForExistingArtifacts(...)`.
+- Multi-round Ollama recovery now supports bounded continuation rounds for split/small-model scenarios, improving completion quality when first retry still returns narrative output.
+- Added regression coverage for local+cloud build quality and completion behavior in `unit-tests/routes/api.chat.streaming-e2e.test.ts` and `unit-tests/lib/.server/llm/ollama-response-normalization.test.ts`.
 
 ---
 
@@ -39,7 +62,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 ### Changed
 
 - Build-mode prompt guardrails now enforce Workbench-first implementation delivery: implementable requests must be returned as a single executable `<boltArtifact>` instead of standalone copy/paste code blocks in chat.
-- Prompt identity/authorship baseline in the fine-tuned system prompt is now explicitly `Bolt2.dyi` (created by Markku Arvekari, year 2026), and matching unit-test baselines were updated.
+- Prompt identity/authorship baseline in the fine-tuned system prompt is now explicitly `Opurion` (created by Markku Arvekari, year 2026), and matching unit-test baselines were updated.
 - Chat shell layout now uses a persistent top model bar and bottom-anchored composer flow by removing the centered intro hero state from `app/components/chat/BaseChat.tsx`.
 - Chat provider/model selector now lists only providers and models that have configured API keys, and key management is routed to Settings > Providers.
 - Provider/model selectors were moved from the main chat workspace into the top toolbar (`app/components/header/Header.tsx`) and synchronized with active chat state.
@@ -58,7 +81,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - Header workspace controls now keep provider/model selectors visible before chat start, with a compact secondary description instead of hiding model selection on the landing state.
 - Sidebar visual language is now text-first in expanded mode with cleaner spacing, reduced icon noise, and an explicit `Customize` action; collapsed mode remains icon-centric.
 - Main workspace now keeps the workbench pane hidden until chat starts, producing a more chat-first layout similar to modern assistant UIs.
-- **UI Redesign — Sidebar**: Sidebar header now shows `logo.svg` instead of "bolt2.dyi" text. In collapsed (72px) mode the logo rotates 90° vertically, the collapse toggle moves below it, and nav actions (New Chat, Search, Customize, Chats, Projects, Artifacts, Code, Help) are shown as icon-only buttons with tooltip titles; clicking any nav icon auto-expands the sidebar to that section. Active section is highlighted in both collapsed and expanded states.
+- **UI Redesign — Sidebar**: Sidebar header now shows `logo.svg` instead of "Opurion" text. In collapsed (72px) mode the logo rotates 90° vertically, the collapse toggle moves below it, and nav actions (New Chat, Search, Customize, Chats, Projects, Artifacts, Code, Help) are shown as icon-only buttons with tooltip titles; clicking any nav icon auto-expands the sidebar to that section. Active section is highlighted in both collapsed and expanded states.
 - **UI Redesign — Profile chip**: Both the sidebar bottom bar and the header profile chip now display user initials (e.g. `MA` for "Markku Arvekari") extracted from the display name instead of a generic user icon; avatar image still takes precedence when set. In collapsed sidebar the profile initials become a standalone accent circle that opens Settings on click.
 - **UI Redesign — Theme switcher**: In collapsed sidebar mode the `ThemeSwitch` dropdown is replaced by two compact icon buttons (☀️ Light / 🌙 Dark) stacked vertically; the active theme is highlighted with an accent background.
 - **UI Redesign — Header action buttons**: A `Workbench` toggle button is now always visible in the header when a chat is active, allowing the Workbench panel to be shown/hidden from the toolbar regardless of preview state. Button label toggles between "Workbench" and "Hide Workbench".
@@ -211,7 +234,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 - n8n integration endpoint for workflow deployment via `/api/n8n/workflows`.
 - Admin-settings fallback support for n8n credentials when environment variables are not set.
 - First-run setup guard that requires database selection before first user creation.
-- Auth setup UI branding updates for bolt2.dyi logo usage.
+- Auth setup UI branding updates for Opurion logo usage.
 - n8n workflow `update` intent support with payload shape validation in `/api/n8n/workflows`.
 - Update notification flow that checks upstream fork version and notifies users when running an older version.
 - Optional “Update now” action wiring (`/api/update` intent `auto`) with explicit manual-update fallback messaging.
@@ -257,7 +280,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Added
 
-- Initial bolt2.dyi fork-specific changelog baseline.
+- Initial Opurion fork-specific changelog baseline.
 - Documented first integrated release scope for fork architecture, setup flow hardening, and n8n deployment support.
 
 ---

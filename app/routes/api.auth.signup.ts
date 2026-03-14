@@ -37,6 +37,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
 
     const count = await getUserCount(env);
+
+    if (count > 0) {
+      return json(
+        { ok: false, error: 'Public signup is disabled. Please contact an administrator.', requestId },
+        { status: 403 },
+      );
+    }
+
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
 

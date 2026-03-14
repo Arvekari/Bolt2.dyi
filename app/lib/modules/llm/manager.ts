@@ -127,8 +127,12 @@ export class LLMManager {
           const dynamicModels = await provider
             .getDynamicModels(apiKeys, providerSettings?.[provider.name], serverEnv)
             .then((models) => {
-              logger.info(`Caching ${models.length} dynamic models for ${provider.name}`);
-              provider.storeDynamicModels(options, models);
+              if (models.length > 0) {
+                logger.info(`Caching ${models.length} dynamic models for ${provider.name}`);
+                provider.storeDynamicModels(options, models);
+              } else {
+                logger.info(`Skipping dynamic model cache for ${provider.name}: empty model list`);
+              }
 
               return models;
             })
@@ -199,7 +203,12 @@ export class LLMManager {
       .getDynamicModels?.(apiKeys, providerSettings?.[provider.name], serverEnv)
       .then((models) => {
         logger.info(`Got ${models.length} dynamic models for ${provider.name}`);
-        provider.storeDynamicModels(options, models);
+
+        if (models.length > 0) {
+          provider.storeDynamicModels(options, models);
+        } else {
+          logger.info(`Skipping dynamic model cache for ${provider.name}: empty model list`);
+        }
 
         return models;
       })

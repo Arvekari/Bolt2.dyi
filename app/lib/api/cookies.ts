@@ -36,22 +36,34 @@ export function getCustomPromptFromCookie(cookieHeader: string | null): {
   enabled: boolean;
   instructions: string;
   mode: 'append' | 'replace';
+  promptLibraryOverrides: Record<string, string>;
 } {
   const cookies = parseCookies(cookieHeader);
 
   if (!cookies.customPrompt) {
-    return { enabled: false, instructions: '', mode: 'append' };
+    return { enabled: false, instructions: '', mode: 'append', promptLibraryOverrides: {} };
   }
 
   try {
     const parsed = JSON.parse(cookies.customPrompt);
+
+    const promptLibraryOverrides =
+      parsed?.promptLibraryOverrides && typeof parsed.promptLibraryOverrides === 'object'
+        ? Object.fromEntries(
+            Object.entries(parsed.promptLibraryOverrides).filter(
+              (entry): entry is [string, string] => typeof entry[1] === 'string',
+            ),
+          )
+        : {};
+
     return {
       enabled: !!parsed?.enabled,
       instructions: typeof parsed?.instructions === 'string' ? parsed.instructions : '',
       mode: parsed?.mode === 'replace' ? 'replace' : 'append',
+      promptLibraryOverrides,
     };
   } catch {
-    return { enabled: false, instructions: '', mode: 'append' };
+    return { enabled: false, instructions: '', mode: 'append', promptLibraryOverrides: {} };
   }
 }
 
@@ -132,7 +144,12 @@ export async function resolveProviderSettings(
 export async function resolveCustomPrompt(
   cookieHeader: string | null,
   env?: Record<string, any>,
-): Promise<{ enabled: boolean; instructions: string; mode: 'append' | 'replace' }> {
+): Promise<{
+  enabled: boolean;
+  instructions: string;
+  mode: 'append' | 'replace';
+  promptLibraryOverrides: Record<string, string>;
+}> {
   const cookieCustomPrompt = getCustomPromptFromCookie(cookieHeader);
   const userId = getUserIdFromCookie(cookieHeader);
 
@@ -146,6 +163,7 @@ export async function resolveCustomPrompt(
     enabled: cookieCustomPrompt.enabled || !!persisted?.customPrompt?.enabled,
     instructions: cookieCustomPrompt.instructions || persisted?.customPrompt?.instructions || '',
     mode,
+    promptLibraryOverrides: cookieCustomPrompt.promptLibraryOverrides,
   };
 
   if (merged.enabled || merged.instructions) {

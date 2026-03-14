@@ -60,13 +60,13 @@ export const checkForUpdates = async (): Promise<UpdateCheckResult> => {
 
     const currentVersion = packageData.version;
 
-    const source = 'Arvekari/Bolt2.dyi';
+    const source = 'Arvekari/Opurion';
 
     /*
      * Get the latest version from GitHub's main branch package.json
      * Using raw.githubusercontent.com which doesn't require authentication
      */
-    const latestPackageResponse = await fetch('https://raw.githubusercontent.com/Arvekari/Bolt2.dyi/main/package.json');
+    const latestPackageResponse = await fetch('https://raw.githubusercontent.com/Arvekari/Opurion/main/package.json');
 
     if (!latestPackageResponse.ok) {
       throw new Error(`Failed to fetch latest package.json: ${latestPackageResponse.status}`);
@@ -102,7 +102,7 @@ export const checkForUpdates = async (): Promise<UpdateCheckResult> => {
       available: false,
       currentVersion: 'unknown',
       version: 'unknown',
-      source: 'Arvekari/Bolt2.dyi',
+      source: 'Arvekari/Opurion',
       error: {
         type: isNetworkError ? 'network' : 'unknown',
         message: `Failed to check for updates: ${errorMessage}`,

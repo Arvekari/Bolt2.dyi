@@ -229,11 +229,10 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                   Code & Development
                 </h5>
                 <div className="space-y-2 text-xs bg-bolt-elements-background-depth-4 p-3 rounded font-mono text-bolt-elements-textPrimary">
-                  <div># Latest Llama 3.2 for coding</div>
-                  <div>ollama pull llama3.2:3b</div>
-                  <div>ollama pull codellama:13b</div>
+                  <div># Recommended coding models (14B+)</div>
+                  <div>ollama pull qwen2.5-coder:14b</div>
+                  <div>ollama pull qwen2.5-coder:32b</div>
                   <div>ollama pull deepseek-coder-v2</div>
-                  <div>ollama pull qwen2.5-coder:7b</div>
                 </div>
               </div>
               <div className="p-4 rounded-lg bg-bolt-elements-background-depth-3">
@@ -242,11 +241,10 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                   General Purpose & Chat
                 </h5>
                 <div className="space-y-2 text-xs bg-bolt-elements-background-depth-4 p-3 rounded font-mono text-bolt-elements-textPrimary">
-                  <div># Latest general models</div>
-                  <div>ollama pull llama3.2:3b</div>
-                  <div>ollama pull mistral:7b</div>
-                  <div>ollama pull phi3.5:3.8b</div>
-                  <div>ollama pull qwen2.5:7b</div>
+                  <div># Recommended general models (14B+)</div>
+                  <div>ollama pull qwen2.5:14b</div>
+                  <div>ollama pull phi4:14b</div>
+                  <div>ollama pull deepseek-r1:14b</div>
                 </div>
               </div>
             </div>
@@ -257,10 +255,10 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                   <span className="font-medium text-purple-500">Performance Optimized</span>
                 </div>
                 <ul className="text-xs text-bolt-elements-textSecondary space-y-1">
-                  <li>• Llama 3.2: 3B - Fastest, 8GB RAM</li>
-                  <li>• Phi-3.5: 3.8B - Great balance</li>
-                  <li>• Qwen2.5: 7B - Excellent quality</li>
-                  <li>• Mistral: 7B - Popular choice</li>
+                  <li>• Qwen2.5-Coder 14B - Balanced coding</li>
+                  <li>• Phi-4 14B - Strong reasoning</li>
+                  <li>• DeepSeek-R1 14B - Excellent quality</li>
+                  <li>• Qwen2.5 32B - High capability</li>
                 </ul>
               </div>
               <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
@@ -269,7 +267,7 @@ function SetupGuide({ onBack }: { onBack: () => void }) {
                   <span className="font-medium text-yellow-500">Pro Tips</span>
                 </div>
                 <ul className="text-xs text-bolt-elements-textSecondary space-y-1">
-                  <li>• Start with 3B-7B models for best performance</li>
+                  <li>• Start with 14B models for best results</li>
                   <li>• Use quantized versions for faster loading</li>
                   <li>• Desktop app auto-manages model storage</li>
                   <li>• Web UI available at localhost:11434</li>

@@ -1,12 +1,12 @@
 # n8n Local Listener (Machine Callback + Task Push)
 
-This listener lets n8n call back into your local Bolt2 workspace while VS Code is running.
+This listener lets n8n call back into your local Opurion workspace while VS Code is running.
 
 ## 1) Configure endpoint address
 
 Edit this file:
 
-- `../listener-config.json` from `Bolt2.dyi` (workspace root)
+- `../listener-config.json` from `Opurion` (workspace root)
 
 Example template:
 
@@ -49,7 +49,7 @@ Compatibility note:
   - `../listener-config.json`
   - `listener-config.json`
   - `bolt.work/n8n/listener-config.json`
-- If missing, it falls back to `Bolt2.dyi/listener-config.json`.
+- If missing, it falls back to `Opurion/listener-config.json`.
 - If all are missing, listener uses built-in defaults.
 
 ## 2) Start listener

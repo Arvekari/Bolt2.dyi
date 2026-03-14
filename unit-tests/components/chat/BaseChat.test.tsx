@@ -83,7 +83,7 @@ describe('app/components/chat/BaseChat.tsx', () => {
       />,
     );
 
-    expect(screen.getByAltText('Bolt2.dyi')).toBeTruthy();
+    expect(screen.getByAltText('Opurion')).toBeTruthy();
     expect(screen.getByText('Import Chat')).toBeTruthy();
     expect(screen.queryByTestId('messages')).toBeNull();
 
@@ -125,7 +125,7 @@ describe('app/components/chat/BaseChat.tsx', () => {
     expect(r1Pane.style.getPropertyValue('--chat-min-width')).toBe('0px');
     expect(screen.getByText('Import Chat')).toBeTruthy();
     expect(screen.getByTestId('workbench-r2-pane')).toBeTruthy();
-    expect(screen.getByAltText('Bolt2.dyi')).toBeTruthy();
+    expect(screen.getByAltText('Opurion')).toBeTruthy();
 
     const landing = screen.getByTestId('landing-container') as HTMLElement;
     expect(landing.style.justifyContent).toBe('flex-end');

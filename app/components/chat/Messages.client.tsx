@@ -1,5 +1,5 @@
 import type { Message } from 'ai';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment } from 'react';
 import { classNames } from '~/utils/classNames';
 import { AssistantMessage } from './AssistantMessage';
 import { UserMessage } from './UserMessage';
@@ -10,9 +10,6 @@ import { toast } from 'react-toastify';
 import { forwardRef } from 'react';
 import type { ForwardedRef } from 'react';
 import type { ProviderInfo } from '~/types/model';
-import { useStore } from '@nanostores/react';
-import { isDebugMode } from '~/lib/stores/settings';
-import { DebugLogPanel } from './DebugLogPanel';
 
 interface MessagesProps {
   id?: string;
@@ -31,8 +28,6 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
   (props: MessagesProps, ref: ForwardedRef<HTMLDivElement> | undefined) => {
     const { id, isStreaming = false, messages = [] } = props;
     const location = useLocation();
-    const debugEnabled = useStore(isDebugMode);
-    const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
 
     const handleRewind = (messageId: string) => {
       const searchParams = new URLSearchParams(location.search);
@@ -100,25 +95,12 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
           : null}
         {isStreaming && (
           <div className="mt-4 w-full rounded-lg border border-bolt-elements-borderColor bg-bolt-elements-background-depth-1 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="text-bolt-elements-item-contentAccent i-svg-spinners:3-dots-fade text-3xl" />
                 <span className="text-xs text-bolt-elements-textSecondary">LLM is processing request</span>
               </div>
-              {debugEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setIsDebugPanelOpen((value) => !value)}
-                  className="text-xs px-2 py-1 rounded border border-bolt-elements-borderColor text-bolt-elements-textPrimary hover:border-bolt-elements-borderColorActive"
-                  aria-expanded={isDebugPanelOpen}
-                  aria-controls="stream-debug-panel"
-                >
-                  {isDebugPanelOpen ? 'Hide debug panel' : 'Show debug panel'}
-                </button>
-              )}
             </div>
-
-            {debugEnabled && isDebugPanelOpen && <DebugLogPanel panelId="stream-debug-panel" />}
           </div>
         )}
       </div>

@@ -1,38 +1,24 @@
 {
   "tableName": "Project-bolt2-open-tasks",
-  "generatedAt": "2026-03-10T08:37:22.882Z",
-  "rows": [
-    {
-      "taskKey": "bolt2-p1-settings-control-panel-grid-cards-ux",
-      "priority": "P1",
-      "status": "PARTIAL",
-      "objective": "**REVISED:** Settings Control Panel requires full UX upgrade from current two-panel layout to category-grid card layout matching design reference. PLUS: Left sidebar navigation must be collapsible to icon-only compact mode. Target: (1) Display all settings sections (General, Preferences, AI, Integrations, Security, System) as large clickable cards with icons + descriptions; (2) Left SettingsNavigation sidebar with collapse/expand toggle - full width shows labels + icons, compact mode shows only icons + tooltip labels; (3) Desktop-first grid, mobile accessible dropdown fallback.",
-      "agent": "markku-dth01",
-      "updatedAt": "2026-03-10T08:37:22.876Z"
-    },
-    {
-      "taskKey": "bolt2-p2-chat-window-layout-fix",
-      "priority": "P2",
-      "status": "PARTIAL",
-      "objective": "Chat main window layout does not match design reference expectations. User reports current implementation is \"broken\" compared to what was communicated in design images. Requires detailed review of: layout structure, message display, input area, toolbar positioning, spacing/padding, and overall visual hierarchy matching the reference design. Also: Left sidebar should be collapsible to icon-only compact mode (similar to Settings).",
-      "agent": "markku-dth01",
-      "updatedAt": "2026-03-10T08:37:22.876Z"
-    }
-  ],
+  "generatedAt": "2026-03-10T12:15:38.165Z",
+  "rows": [],
   "stats": {
-    "available": true,
+    "measuredAt": "2026-03-10T12:15:38.164Z",
     "sampledExecutions": 250,
+    "managedWorkflowIds": [
+      "FaDMNrIq330kFYpD",
+      "EBuYk5dvbIkZOkLE",
+      "bWliUISoq1GNw2fL",
+      "nMxu113Luf2eL5v8",
+      "yThYpAzViGKDDGZc"
+    ],
     "managedExecutions": 250,
     "productionExecutions": 250,
     "failedProductionExecutions": 0,
     "failureRatePercent": 0,
     "averageRuntimeMs": 160,
-    "estimatedTimeSavedMinutes": 7500,
-    "minutesSavedPerRound": 30,
-    "successfulRounds": 250,
+    "estimatedTimeSavedMinutes": 1499,
     "manualMinutesPerRun": 6,
-    "measuredAt": "2026-03-10T08:37:22.876Z",
-    "note": "Each successful full rotation of project-bolt2-ongoing-work-dispatch saves 30 min as orchestrated.",
-    "statsFile": "C:\\Users\\arva\\OneDrive\\Documents\\Private\\Projects\\Coding\\Bolt.arva\\Bolt2.dyi\\bolt.work\\n8n\\orchestration-stats.latest.json"
+    "openObjectivesCount": 0
   }
 }

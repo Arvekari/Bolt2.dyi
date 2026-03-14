@@ -40,3 +40,19 @@ export type AgentRunData = {
     };
   };
 };
+
+export type DebugStreamEvent = {
+  type: 'debugStream';
+  eventId: string;
+  source: string;
+  phase: 'start' | 'complete';
+  message: string;
+  requestId?: string;
+  clientRequestId?: string;
+  provider?: string;
+  model?: string;
+  normalizedArtifactApplied?: boolean;
+  originalResponsePreview?: string;
+  retryInstructionPreview?: string;
+  retryResponsePreview?: string;
+};

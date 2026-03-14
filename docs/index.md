@@ -1,11 +1,12 @@
-# Welcome to Bolt2.dyi
+# Welcome to Opurion
 
-Bolt2.dyi allows you to choose the LLM that you use for each prompt! Currently, you can use models from 19 providers including OpenAI, Anthropic, Ollama, OpenRouter, Google/Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, Groq, Cohere, Together AI, Perplexity AI, Hyperbolic, Moonshot AI (Kimi), Amazon Bedrock, GitHub Models, and more - with easy extensibility to add any other model supported by the Vercel AI SDK! See the instructions below for running this locally and extending it to include more models.
+Opurion allows you to choose the LLM that you use for each prompt! Currently, you can use models from 19 providers including OpenAI, Anthropic, Ollama, OpenRouter, Google/Gemini, LMStudio, Mistral, xAI, HuggingFace, DeepSeek, Groq, Cohere, Together AI, Perplexity AI, Hyperbolic, Moonshot AI (Kimi), Amazon Bedrock, GitHub Models, and more - with easy extensibility to add any other model supported by the Vercel AI SDK! See the instructions below for running this locally and extending it to include more models.
 
 ## Table of Contents
 
 - [Join the community!](#join-the-community)
 - [Features](#features)
+- [AI Function Docs](#ai-function-docs)
 - [Setup](#setup)
   - [Prerequisites](#prerequisites)
   - [Clone the Repository](#clone-the-repository)
@@ -33,7 +34,7 @@ Bolt2.dyi allows you to choose the LLM that you use for each prompt! Currently, 
 
 [Join the community!](https://thinktank.ottomator.ai)
 
-Also [this pinned post in our community](https://thinktank.ottomator.ai/t/videos-tutorial-helpful-content/3243) has a bunch of incredible resources for running and deploying Bolt2.dyi yourself!
+Also [this pinned post in our community](https://thinktank.ottomator.ai/t/videos-tutorial-helpful-content/3243) has a bunch of incredible resources for running and deploying Opurion yourself!
 
 ---
 
@@ -58,6 +59,12 @@ Also [this pinned post in our community](https://thinktank.ottomator.ai/t/videos
 
 ---
 
+## AI Function Docs
+
+- [Opurion Execution Protocol](ai/functions/bolt-protocol.md)
+
+---
+
 ## Setup
 
 If you're new to installing software from GitHub, don't worry! If you encounter any issues, feel free to submit an "issue" using the provided links or improve this documentation by forking the repository, editing the instructions, and submitting a pull request. The following instruction will help you get the stable branch up and running on your local machine in no time.
@@ -76,26 +83,26 @@ If you're new to installing software from GitHub, don't worry! If you encounter 
 
 ### Clone the Repository
 
-Alternatively, you can download the latest version of the project directly from the [Releases Page](https://github.com/Bolt2-dyi/Bolt2.dyi/releases/latest). Simply download the .zip file, extract it, and proceed with the setup instructions below. If you are comfertiable using git then run the command below.
+Alternatively, you can download the latest version of the project directly from the [Releases Page](https://github.com/Arvekari/Opurion/releases/latest). Simply download the .zip file, extract it, and proceed with the setup instructions below. If you are comfertiable using git then run the command below.
 
 Clone the repository using Git:
 
 ```bash
-git clone https://github.com/Bolt2-dyi/Bolt2.dyi
-cd Bolt2.dyi
+git clone https://github.com/Arvekari/Opurion
+cd Opurion
 ```
 
 ---
 
 ### Entering API Keys
 
-There are two ways to configure your API keys in Bolt2.dyi:
+There are two ways to configure your API keys in Opurion:
 
 #### 1. Set API Keys in the `.env.local` File
 
 When setting up the application, you will need to add your API keys for the LLMs you wish to use. You can do this by renaming the `.env.example` file to `.env.local` and adding your API keys there.
 
-- On **Mac**, you can find the file at `[your name]/Bolt2.dyi/.env.example`.
+- On **Mac**, you can find the file at `[your name]/Opurion/.env.example`.
 - On **Windows/Linux**, the path will be similar.
 
 If you can't see the file, it's likely because hidden files are not being shown. On **Mac**, open a Terminal window and enter the following command to show hidden files:
@@ -200,7 +207,7 @@ Once you've configured your keys, the application will be ready to use the selec
 
 ### Update Your Local Version to the Latest
 
-To keep your local version of Bolt2.dyi up to date with the latest changes, follow these steps for your operating system:
+To keep your local version of Opurion up to date with the latest changes, follow these steps for your operating system:
 
 #### 1. **Navigate to your project folder**
 
@@ -235,13 +242,13 @@ pnpm install
   pnpm run dev
   ```
 
-This ensures that you're running the latest version of Bolt2.dyi and can take advantage of all the newest features and bug fixes.
+This ensures that you're running the latest version of Opurion and can take advantage of all the newest features and bug fixes.
 
 ---
 
 ## Adding New LLMs
 
-Bolt2.dyi supports a modular architecture for adding new LLM providers and models. The system is designed to be easily extensible while maintaining consistency across all providers.
+Opurion supports a modular architecture for adding new LLM providers and models. The system is designed to be easily extensible while maintaining consistency across all providers.
 
 ### Understanding the Provider Architecture
 
@@ -379,7 +386,7 @@ The modular architecture makes it easy to add new providers while maintaining co
 
 ## MCP (Model Context Protocol) Integration
 
-Bolt2.dyi supports MCP (Model Context Protocol) servers to extend AI capabilities with external tools and services. MCP allows you to connect various tools and services that the AI can use during conversations.
+Opurion supports MCP (Model Context Protocol) servers to extend AI capabilities with external tools and services. MCP allows you to connect various tools and services that the AI can use during conversations.
 
 ### Setting up MCP Servers
 
@@ -402,7 +409,7 @@ The MCP integration enhances the AI's ability to perform complex tasks by giving
 
 ## Git Integration and Version Control
 
-Bolt2.dyi provides comprehensive Git integration for version control, collaboration, and project management.
+Opurion provides comprehensive Git integration for version control, collaboration, and project management.
 
 ### GitHub Integration
 
@@ -429,7 +436,7 @@ Bolt2.dyi provides comprehensive Git integration for version control, collaborat
 
 ## Deployment Options
 
-Bolt2.dyi provides one-click deployment to popular hosting platforms, making it easy to share your projects with the world.
+Opurion provides one-click deployment to popular hosting platforms, making it easy to share your projects with the world.
 
 ### Supported Platforms
 
@@ -437,7 +444,7 @@ Bolt2.dyi provides one-click deployment to popular hosting platforms, making it 
 
 1. Connect your Vercel account in Settings → Connections → Vercel
 2. Click the deploy button in your project
-3. Bolt2.dyi automatically builds and deploys your project
+3. Opurion automatically builds and deploys your project
 4. Get a live URL instantly with Vercel's global CDN
 
 #### Netlify Deployment
@@ -466,13 +473,13 @@ Bolt2.dyi provides one-click deployment to popular hosting platforms, making it 
 
 ## Supabase Integration
 
-Bolt2.dyi integrates with Supabase to provide backend database functionality, authentication, and real-time features for your applications.
+Opurion integrates with Supabase to provide backend database functionality, authentication, and real-time features for your applications.
 
 ### Setting up Supabase
 
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 2. Get your project URL and API keys from the Supabase dashboard
-3. Configure the connection in your Bolt2.dyi project
+3. Configure the connection in your Opurion project
 4. Use the Supabase tools to interact with your database
 
 ### Database Features
@@ -499,7 +506,7 @@ Supabase integration makes it easy to build full-stack applications with a robus
 
 ## WebContainer and Live Preview
 
-Bolt2.dyi uses WebContainer technology to provide a secure, isolated development environment with live preview capabilities.
+Opurion uses WebContainer technology to provide a secure, isolated development environment with live preview capabilities.
 
 ### WebContainer Features
 
@@ -533,7 +540,7 @@ The WebContainer integration provides a seamless development experience without 
 
 ## Project Templates
 
-Bolt2.dyi comes with a comprehensive collection of starter templates to help you quickly bootstrap your projects. Choose from popular frameworks and technologies:
+Opurion comes with a comprehensive collection of starter templates to help you quickly bootstrap your projects. Choose from popular frameworks and technologies:
 
 ### Frontend Frameworks
 
@@ -568,7 +575,7 @@ Bolt2.dyi comes with a comprehensive collection of starter templates to help you
 
 ### Getting Started with Templates
 
-1. Start a new project in Bolt2.dyi
+1. Start a new project in Opurion
 2. Browse available templates in the starter selection
 3. Select your preferred technology stack
 4. The AI will scaffold your project with best practices
@@ -635,7 +642,7 @@ This will start the Remix Vite development server. You will need Google Chrome C
 
 ### Help Icon in Sidebar
 
-Bolt2.dyi includes a convenient help icon (?) in the sidebar that provides quick access to comprehensive documentation. Simply click the help icon to open the full documentation in a new tab.
+Opurion includes a convenient help icon (?) in the sidebar that provides quick access to comprehensive documentation. Simply click the help icon to open the full documentation in a new tab.
 
 The documentation includes:
 
@@ -653,7 +660,7 @@ The documentation includes:
 
 ## Tips and Tricks
 
-Here are some tips to get the most out of Bolt2.dyi:
+Here are some tips to get the most out of Opurion:
 
 - **Be specific about your stack**: If you want to use specific frameworks or libraries (like Astro, Tailwind, ShadCN, or any other popular JavaScript framework), mention them in your initial prompt to ensure Bolt scaffolds the project accordingly.
 

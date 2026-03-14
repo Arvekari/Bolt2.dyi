@@ -1,4 +1,4 @@
-# Project management of Bolt2.dyi
+# Project management of Opurion
 
 First off: this sounds funny, we know. "Project management" comes from a world of enterprise stuff and this project is
 far from being enterprisy- it's still anarchy all over the place 😉
@@ -14,7 +14,7 @@ Here's how we structure long-term vision, mid-term capabilities of the software 
 Strategic epics define areas in which the product evolves. Usually, these epics don’t overlap. They shall allow the core
 team to define what they believe is most important and should be worked on with the highest priority.
 
-You can find the [epics as issues](https://github.com/Bolt2-dyi/Bolt2.dyi/labels/epic) which are probably never
+You can find the [epics as issues](https://github.com/Arvekari/Opurion/labels/epic) which are probably never
 going to be closed.
 
 What's the benefit / purpose of epics?
@@ -60,7 +60,7 @@ All authors of commits in the PR are mentioned in the squashed commit message an
 
 ## Fork Architecture Overview
 
-This fork keeps the familiar Bolt2.dyi UI while introducing stricter backend architecture boundaries.
+This fork keeps the familiar Opurion UI while introducing stricter backend architecture boundaries.
 
 Target reference structure:
 

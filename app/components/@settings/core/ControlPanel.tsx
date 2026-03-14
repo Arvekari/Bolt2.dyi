@@ -31,6 +31,7 @@ import N8nTab from '~/components/@settings/tabs/n8n/N8nTab';
 import OpenClawTab from '~/components/@settings/tabs/openclaw/OpenClawTab';
 import HttpDeployTab from '~/components/@settings/tabs/http-deploy/HttpDeployTab';
 import SystemPromptTab from '~/components/@settings/tabs/system-prompt/SystemPromptTab';
+import DebugTab from '~/components/@settings/tabs/debug/DebugTab';
 import UserManagementTab from '../tabs/users/UserManagementTab';
 import type { PlatformRole } from '~/platform/security/authz';
 
@@ -64,6 +65,7 @@ const TAB_SECTION_MAP: Partial<Record<TabType, SettingsSection>> = {
   'http-deploy': 'Integrations',
   data: 'System',
   'event-logs': 'System',
+  debug: 'System',
   'system-prompt': 'System',
 };
 
@@ -284,6 +286,8 @@ export const ControlPanel = ({ open, onClose, initialTab = 'profile' }: ControlP
         return <NetlifyTab />;
       case 'event-logs':
         return <EventLogsTab />;
+      case 'debug':
+        return <DebugTab />;
       case 'mcp':
         return <McpTab />;
       case 'n8n':

@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
 import { computed } from 'nanostores';
-import { memo, useCallback, useEffect, useState, useMemo } from 'react';
+import { memo, useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Popover, Transition } from '@headlessui/react';
 import { diffLines, type Change } from 'diff';
@@ -30,6 +30,8 @@ import { useChatHistory } from '~/lib/persistence';
 import { streamingState } from '~/lib/stores/streaming';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { uiButtonClassTokens } from '~/components/ui/tokens';
+import { detectProjectCommands } from '~/utils/projectCommands';
+import { generateId } from '~/utils/fileUtils';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -309,6 +311,16 @@ export const Workbench = memo(
     const streaming = useStore(streamingState);
     const { exportChat } = useChatHistory();
     const [isSyncing, setIsSyncing] = useState(false);
+    const autoPreviewLaunchStateRef = useRef<{
+      inFlight: boolean;
+      lastAttemptAt: number;
+      lastSignature?: string;
+      setupAttemptedSignatures: Set<string>;
+    }>({
+      inFlight: false,
+      lastAttemptAt: 0,
+      setupAttemptedSignatures: new Set<string>(),
+    });
 
     const setSelectedView = (view: WorkbenchViewType) => {
       workbenchStore.currentView.set(view);
@@ -319,6 +331,112 @@ export const Workbench = memo(
         setSelectedView('preview');
       }
     }, [hasPreview]);
+
+    useEffect(() => {
+      if (hasPreview) {
+        autoPreviewLaunchStateRef.current.inFlight = false;
+        return;
+      }
+
+      if (!showWorkbench || selectedView !== 'preview') {
+        return;
+      }
+
+      const now = Date.now();
+      const state = autoPreviewLaunchStateRef.current;
+
+      if (state.inFlight || now - state.lastAttemptAt < 5000) {
+        return;
+      }
+
+      let cancelled = false;
+
+      const candidateFiles = Object.entries(files).reduce<Array<{ path: string; content: string }>>(
+        (accumulator, [filePath, file]) => {
+          if (file?.type === 'file' && !file.isBinary && typeof file.content === 'string') {
+            accumulator.push({ path: filePath, content: file.content });
+          }
+
+          return accumulator;
+        },
+        [],
+      );
+
+      if (candidateFiles.length === 0) {
+        return;
+      }
+
+      const tryAutoStartPreview = async () => {
+        const commands = await detectProjectCommands(candidateFiles);
+
+        if (cancelled || !commands.startCommand) {
+          return;
+        }
+
+        const signature = `${commands.setupCommand ?? ''}::${commands.startCommand}`;
+
+        if (state.lastSignature === signature && now - state.lastAttemptAt < 30000) {
+          return;
+        }
+
+        const artifact = workbenchStore.firstArtifact;
+
+        if (!artifact) {
+          return;
+        }
+
+        state.inFlight = true;
+        state.lastAttemptAt = now;
+        state.lastSignature = signature;
+
+        const setupCommand = commands.setupCommand;
+        const shouldRunSetup = setupCommand && !state.setupAttemptedSignatures.has(signature);
+
+        if (shouldRunSetup) {
+          const setupActionData = {
+            artifactId: artifact.id,
+            messageId: 'auto-preview-launch',
+            actionId: `auto-preview-setup-${generateId()}`,
+            action: {
+              type: 'shell' as const,
+              content: setupCommand,
+            },
+          };
+
+          workbenchStore.addAction(setupActionData);
+          workbenchStore.runAction(setupActionData);
+          state.setupAttemptedSignatures.add(signature);
+        }
+
+        const startActionData = {
+          artifactId: artifact.id,
+          messageId: 'auto-preview-launch',
+          actionId: `auto-preview-start-${generateId()}`,
+          action: {
+            type: 'start' as const,
+            content: commands.startCommand,
+          },
+        };
+
+        workbenchStore.addAction(startActionData);
+        workbenchStore.runAction(startActionData);
+
+        toast.info(`Auto-starting preview: ${commands.startCommand}`);
+
+        setTimeout(() => {
+          autoPreviewLaunchStateRef.current.inFlight = false;
+        }, 2500);
+      };
+
+      tryAutoStartPreview().catch((error) => {
+        console.error('Failed to auto-start preview:', error);
+        autoPreviewLaunchStateRef.current.inFlight = false;
+      });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [showWorkbench, selectedView, hasPreview, files]);
 
     useEffect(() => {
       workbenchStore.setDocuments(files);
@@ -424,9 +542,9 @@ export const Workbench = memo(
                           <DropdownMenu.Content
                             className={classNames(
                               'min-w-[240px] z-[250]',
-                              'bg-white dark:bg-[#141414]',
+                              'bg-bolt-elements-background-depth-1',
                               'rounded-lg shadow-lg',
-                              'border border-gray-200/50 dark:border-gray-800/50',
+                              'border border-bolt-elements-borderColor',
                               'animate-in fade-in-0 zoom-in-95',
                               'py-1',
                             )}

@@ -106,7 +106,7 @@ export const Artifact = memo(({ artifactId }: ArtifactProps) => {
           {debugEnabled && (
             <button
               type="button"
-              className="bg-bolt-elements-artifacts-background hover:bg-bolt-elements-artifacts-backgroundHover px-3 text-xs text-bolt-elements-textPrimary"
+              className="bg-bolt-elements-background-depth-3 hover:bg-bolt-elements-background-depth-4 border border-bolt-elements-borderColor px-3 text-xs text-bolt-elements-textPrimary"
               onClick={(_event) => {
                 setIsDebugPanelOpen((value) => !value);
               }}

@@ -6,12 +6,14 @@ const {
   resolveProviderSettingsMock,
   resolveCustomPromptMock,
   processMcpMessagesForRequestMock,
+  extractPropertiesFromMessageMock,
 } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
   resolveApiKeysMock: vi.fn(),
   resolveProviderSettingsMock: vi.fn(),
   resolveCustomPromptMock: vi.fn(),
   processMcpMessagesForRequestMock: vi.fn(),
+  extractPropertiesFromMessageMock: vi.fn(),
 }));
 
 vi.mock('~/lib/.server/llm/constants', () => ({
@@ -37,7 +39,7 @@ vi.mock('~/lib/.server/llm/create-summary', () => ({
 }));
 
 vi.mock('~/lib/.server/llm/utils', () => ({
-  extractPropertiesFromMessage: vi.fn(() => ({ model: 'gpt-4o-mini', provider: 'OpenAI' })),
+  extractPropertiesFromMessage: extractPropertiesFromMessageMock,
 }));
 
 vi.mock('~/lib/services/mcpService', () => ({
@@ -102,6 +104,7 @@ describe('api.chat streaming end-to-end regression', () => {
     resolveProviderSettingsMock.mockResolvedValue({});
     resolveCustomPromptMock.mockResolvedValue(undefined);
     processMcpMessagesForRequestMock.mockImplementation(async ({ messages }) => messages);
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'gpt-4o-mini', provider: 'OpenAI' });
   });
 
   it('streams delayed text chunks to response body (guards against non-awaited stream bug)', async () => {
@@ -134,5 +137,237 @@ describe('api.chat streaming end-to-end regression', () => {
 
     expect(text).toContain('SMOKE_OK');
     expect(streamTextMock).toHaveBeenCalled();
+  });
+
+  it('runs multiple Ollama recovery rounds when split mode produces repeated narrative output', async () => {
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'tiny-coder-6.7b', provider: 'Ollama' });
+
+    streamTextMock
+      .mockImplementationOnce(async () => ({
+        fullStream: (async function* () {
+          yield {
+            type: 'text-delta',
+            text: 'I will now explain what files you should create and why this app architecture is good for maintainability.',
+          };
+          yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+        })(),
+      }))
+      .mockImplementationOnce(async () => ({
+        fullStream: (async function* () {
+          yield {
+            type: 'text-delta',
+            text: 'Second attempt still narrative. Next you should create package.json and App.tsx with clean components.',
+          };
+          yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+        })(),
+      }))
+      .mockImplementationOnce(async () => ({
+        fullStream: (async function* () {
+          yield {
+            type: 'text-delta',
+            text: '<boltArtifact id="a" title="Build"><boltAction type="file" filePath="/index.html"><!doctype html><html><body>ok</body></html></boltAction></boltArtifact>',
+          };
+          yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+        })(),
+      }));
+
+    const request = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ id: 'u1', role: 'user', content: '[Model: tiny-coder-6.7b]\n\n[Provider: Ollama]\n\nbuild app' }],
+        files: {},
+        contextOptimization: false,
+        chatMode: 'build',
+        maxLLMSteps: 1,
+        ollamaBridgedSystemPromptSplit: false,
+      }),
+    });
+
+    const response = (await action({ request, context: { cloudflare: { env: {} } } } as any)) as Response;
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(streamTextMock).toHaveBeenCalledTimes(3);
+    expect(text).toContain('<boltArtifact');
+
+    const firstCallArgs = streamTextMock.mock.calls[0][0];
+    const secondCallArgs = streamTextMock.mock.calls[1][0];
+    const thirdCallArgs = streamTextMock.mock.calls[2][0];
+
+    expect(firstCallArgs.forcedProvider).toBe('Ollama');
+    expect(firstCallArgs.forcedModel).toBe('tiny-coder-6.7b');
+    expect(secondCallArgs.forcedProvider).toBe('Ollama');
+    expect(secondCallArgs.forcedModel).toBe('tiny-coder-6.7b');
+    expect(thirdCallArgs.forcedProvider).toBe('Ollama');
+    expect(thirdCallArgs.forcedModel).toBe('tiny-coder-6.7b');
+  });
+
+  it('completes partial cloud build artifacts into runnable React project essentials', async () => {
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'gpt-5.4', provider: 'OpenAI' });
+
+    streamTextMock.mockImplementationOnce(async () => ({
+      fullStream: (async function* () {
+        yield {
+          type: 'text-delta',
+          text: `Missing pieces likely include clearer feature coverage and stronger sectioning.\n\n<boltArtifact id="react-ui" title="App" type="bundled">\n<boltAction type="file" filePath="/src/App.jsx">\nexport default function App(){ return <h1>Professional Landing</h1>; }\n</boltAction>\n</boltArtifact>`,
+        };
+        yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+      })(),
+    }));
+
+    const request = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          {
+            id: 'u1',
+            role: 'user',
+            content: '[Model: gpt-5.4]\n\n[Provider: OpenAI]\n\nBuild a professional React landing page with runnable project files.',
+          },
+        ],
+        files: {},
+        contextOptimization: false,
+        chatMode: 'build',
+        maxLLMSteps: 1,
+      }),
+    });
+
+    const response = (await action({ request, context: { cloudflare: { env: {} } } } as any)) as Response;
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain('/src/App.jsx');
+    expect(text).toContain('/package.json');
+    expect(text).toContain('/index.html');
+    expect(text).toContain('npm run dev');
+  });
+
+  it('streams cloud build prose progressively while still emitting executable artifact content plus synthesized essentials', async () => {
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'gpt-5.4', provider: 'OpenAI' });
+
+    streamTextMock.mockImplementationOnce(async () => ({
+      fullStream: (async function* () {
+        yield {
+          type: 'text-delta',
+          text: `I am preparing the implementation now.\n\n<boltArtifact id="react-ui" title="App" type="bundled">\n<boltAction type="file" filePath="/src/App.jsx">\nexport default function App(){ return <section><h1>Digital Assistant Services</h1></section>; }\n</boltAction>\n</boltArtifact>`,
+        };
+        yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+      })(),
+    }));
+
+    const request = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          {
+            id: 'u1',
+            role: 'user',
+            content: '[Model: gpt-5.4]\n\n[Provider: OpenAI]\n\nBuild a Digital Assistant Services page with runnable project files.',
+          },
+        ],
+        files: {},
+        contextOptimization: false,
+        chatMode: 'build',
+        maxLLMSteps: 1,
+      }),
+    });
+
+    const response = (await action({ request, context: { cloudflare: { env: {} } } } as any)) as Response;
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain('<boltArtifact');
+    expect(text).toContain('/src/App.jsx');
+    expect(text).toContain('/package.json');
+    expect(text).toContain('I am preparing the implementation now.');
+  });
+
+  it('does not drop cloud build responses when only narrative text is returned', async () => {
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'gpt-5.4', provider: 'OpenAI' });
+
+    streamTextMock.mockImplementationOnce(async () => ({
+      fullStream: (async function* () {
+        yield {
+          type: 'text-delta',
+          text: 'Plain narrative fallback from cloud model.',
+        };
+        yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+      })(),
+    }));
+
+    const request = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ id: 'u1', role: 'user', content: '[Model: gpt-5.4]\n\n[Provider: OpenAI]\n\nbuild app' }],
+        files: {},
+        contextOptimization: false,
+        chatMode: 'build',
+        maxLLMSteps: 1,
+      }),
+    });
+
+    const response = (await action({ request, context: { cloudflare: { env: {} } } } as any)) as Response;
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain('Plain narrative fallback from cloud model.');
+  });
+
+  it('completes small-model trivial vite shell into runnable React output on the initial request', async () => {
+    extractPropertiesFromMessageMock.mockReturnValue({ model: 'tiny-coder-6.7b', provider: 'Ollama' });
+
+    streamTextMock.mockImplementationOnce(async () => ({
+      fullStream: (async function* () {
+        yield {
+          type: 'text-delta',
+          text: [
+            'I will create a Digital Assistant Services page for you.',
+            '',
+            '```html',
+            '<!DOCTYPE html>',
+            '<html lang="en">',
+            '  <head>',
+            '    <meta charset="UTF-8" />',
+            '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+            '    <title>Bolt React App</title>',
+            '  </head>',
+            '  <body>',
+            '    <div id="root"></div>',
+            '    <script type="module" src="/src/main.tsx"></script>',
+            '  </body>',
+            '</html>',
+            '```',
+          ].join('\n'),
+        };
+        yield { type: 'finish', finishReason: 'stop', totalUsage: { promptTokens: 1, completionTokens: 1 } };
+      })(),
+    }));
+
+    const request = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ id: 'u1', role: 'user', content: '[Model: tiny-coder-6.7b]\n\n[Provider: Ollama]\n\nBuild a Digital Assistant Services page.' }],
+        files: {},
+        contextOptimization: false,
+        chatMode: 'build',
+        maxLLMSteps: 1,
+        ollamaBridgedSystemPromptSplit: false,
+      }),
+    });
+
+    const response = (await action({ request, context: { cloudflare: { env: {} } } } as any)) as Response;
+    const text = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(text).toContain('/App.tsx');
+    expect(text).toContain('/package.json');
+    expect(text).toContain('/index.html');
+    expect(text).toContain('npm run dev');
+    expect(text).not.toContain('<div id="root"></div>');
   });
 });

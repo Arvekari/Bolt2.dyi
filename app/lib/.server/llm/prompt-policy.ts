@@ -3,6 +3,8 @@ type PromptMessage = {
   content: string;
 };
 
+import { inferModelSizeInBillions } from '~/lib/common/system-prompt-profiles';
+
 export type ModelClass = 'small' | 'standard' | 'large';
 
 export type PromptProfile = {
@@ -10,6 +12,8 @@ export type PromptProfile = {
   maxContextChars: number;
   maxInstructionChars: number;
 };
+
+const COMPACTED_GAP_MARKER = '\n\n[... condensed ...]\n\n';
 
 const PROFILES: Record<ModelClass, PromptProfile> = {
   small: {
@@ -31,6 +35,14 @@ const PROFILES: Record<ModelClass, PromptProfile> = {
 
 export function detectModelClass(modelName: string, modelMeta?: { maxTokenAllowed?: number }): ModelClass {
   const normalizedName = modelName.toLowerCase();
+  const inferredSizeB = inferModelSizeInBillions(modelName);
+
+  // Prefer explicit parameter-size hints over context-window heuristics for local models.
+  // Many 14B-16B Ollama models expose 8k contexts, but still need more than the
+  // ultra-compact prompt profile used for truly small models.
+  if (inferredSizeB !== null && inferredSizeB >= 14) {
+    return inferredSizeB >= 100 ? 'large' : 'standard';
+  }
 
   if (
     normalizedName.includes('mini') ||
@@ -55,6 +67,26 @@ export function compactInstructions(input: string): string {
     .filter((line, index, list) => !(line.length === 0 && list[index - 1]?.length === 0))
     .join('\n')
     .trim();
+}
+
+export function compactSystemInstructions(input: string, maxChars: number): string {
+  const compacted = compactInstructions(input);
+
+  if (compacted.length <= maxChars) {
+    return compacted;
+  }
+
+  if (maxChars <= COMPACTED_GAP_MARKER.length + 80) {
+    return compacted.slice(0, maxChars).trim();
+  }
+
+  const remainingBudget = maxChars - COMPACTED_GAP_MARKER.length;
+  const suffixBudget = Math.max(Math.floor(remainingBudget * 0.45), 200);
+  const prefixBudget = Math.max(remainingBudget - suffixBudget, 200);
+  const prefix = compacted.slice(0, prefixBudget).trimEnd();
+  const suffix = compacted.slice(-suffixBudget).trimStart();
+
+  return `${prefix}${COMPACTED_GAP_MARKER}${suffix}`;
 }
 
 function pruneMessages(messages: PromptMessage[], maxChars: number): { messages: PromptMessage[]; wasPruned: boolean } {
@@ -91,7 +123,7 @@ export function applyPromptPolicy(input: {
   const modelClass = detectModelClass(input.modelName, input.modelMeta);
   const profile = PROFILES[modelClass];
 
-  const compactSystem = compactInstructions(input.system).slice(0, profile.maxInstructionChars);
+  const compactSystem = compactSystemInstructions(input.system, profile.maxInstructionChars);
   const compactMessages = input.messages.map((message) => ({
     ...message,
     content: compactInstructions(message.content),

@@ -1553,6 +1553,25 @@ async function syncOpenTasksTable(tableName = DEFAULT_OPEN_TASKS_TABLE_NAME) {
   }
 
   const mappedRows = mapOpenTaskRowsToColumns(rows, resolvedColumns);
+
+  // Empty queue is a valid steady state; avoid POSTing empty data arrays because
+  // n8n Data Tables rejects them with 400 and incorrectly triggers fallback mode.
+  if (mappedRows.length === 0) {
+    return {
+      tableName: targetTable,
+      dataTablesSupported: true,
+      tableId: resolvedTableId,
+      resolvedTableName,
+      created: tableCheck.created,
+      rowsSynced: 0,
+      openObjectives: 0,
+      writeRoute: null,
+      stats,
+      ...persistedStats,
+      ...fallback,
+    };
+  }
+
   const writeResult = await tryWriteOpenTaskRows(baseUrl, apiKey, resolvedTableId, mappedRows);
 
   if (!writeResult.synced) {

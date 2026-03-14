@@ -12,6 +12,14 @@ import { discussPrompt } from '~/lib/common/prompts/discuss-prompt';
 import type { DesignScheme } from '~/types/design-scheme';
 import { applyPromptPolicy } from '~/lib/.server/llm/prompt-policy';
 import { ensureWebStreamCompatibility } from '~/lib/.server/llm/web-stream-compat';
+import {
+  DEFAULT_PROMPT_FALLBACK_PROFILE_KEYS,
+  inferModelSizeInBillions,
+  isModelEligibleForCustomPromptProfiles,
+  resolveProfileKeyForModel,
+  sanitizePromptProfiles,
+  type SystemPromptProfiles,
+} from '~/lib/common/system-prompt-profiles';
 
 export type Messages = Message[];
 
@@ -27,6 +35,7 @@ export interface StreamingOptions extends Omit<Parameters<typeof _streamText>[0]
 }
 
 const logger = createScopedLogger('stream-text');
+const LOCAL_SYSTEM_PROMPT_BRIDGE_PROVIDERS = new Set(['Ollama', 'LMStudio', 'OpenAILike']);
 
 function isCompletionOnlyOpenAIModel(providerName: string, modelName: string): boolean {
   if (providerName !== 'OpenAI') {
@@ -50,6 +59,139 @@ export function isOpenAIResponsesModel(providerName: string, modelName: string):
 
 export function isToolCallingDisabledForProvider(_providerName: string): boolean {
   return false;
+}
+
+export function shouldBridgeSystemPromptToMessages(providerName: string): boolean {
+  return LOCAL_SYSTEM_PROMPT_BRIDGE_PROVIDERS.has(providerName);
+}
+
+function isLocalProvider(providerName: string): boolean {
+  return LOCAL_SYSTEM_PROMPT_BRIDGE_PROVIDERS.has(providerName);
+}
+
+function isTruthyFlag(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function isOllamaForceSingleMessageEnabled(serverEnv?: Env, requestOverride?: boolean): boolean {
+  if (typeof requestOverride === 'boolean') {
+    return requestOverride;
+  }
+
+  const envValue = serverEnv
+    ? ((serverEnv as unknown as Record<string, unknown>)['OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT'] as unknown)
+    : undefined;
+  const processValue = process.env.OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT;
+
+  return isTruthyFlag(envValue) || isTruthyFlag(processValue);
+}
+
+export function bridgeSystemPromptIntoMessages(
+  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+  systemPrompt: string,
+  options?: {
+    splitIntoParts?: boolean;
+    maxPartChars?: number;
+  },
+): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
+  const firstUserIndex = messages.findIndex((message) => message.role === 'user');
+
+  if (firstUserIndex === -1 || !systemPrompt.trim()) {
+    return messages;
+  }
+
+  const splitSystemPromptIntoParts = (input: string, maxPartChars: number): string[] => {
+    const paragraphs = input
+      .split(/\n\s*\n/g)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const parts: string[] = [];
+    let current = '';
+
+    for (const paragraph of paragraphs) {
+      if (!current) {
+        if (paragraph.length <= maxPartChars) {
+          current = paragraph;
+          continue;
+        }
+
+        for (let index = 0; index < paragraph.length; index += maxPartChars) {
+          parts.push(paragraph.slice(index, index + maxPartChars).trim());
+        }
+
+        continue;
+      }
+
+      const candidate = `${current}\n\n${paragraph}`;
+
+      if (candidate.length <= maxPartChars) {
+        current = candidate;
+        continue;
+      }
+
+      parts.push(current);
+
+      if (paragraph.length <= maxPartChars) {
+        current = paragraph;
+        continue;
+      }
+
+      for (let index = 0; index < paragraph.length; index += maxPartChars) {
+        parts.push(paragraph.slice(index, index + maxPartChars).trim());
+      }
+
+      current = '';
+    }
+
+    if (current) {
+      parts.push(current);
+    }
+
+    return parts.filter(Boolean);
+  };
+
+  const splitParts = options?.splitIntoParts
+    ? splitSystemPromptIntoParts(systemPrompt.trim(), Math.max(200, options?.maxPartChars ?? 900))
+    : [];
+
+  const bridgedSystemPrompt =
+    splitParts.length > 1
+      ? `<system_directives>
+${splitParts
+  .map(
+    (part, index) => `<directive_part index="${index + 1}" total="${splitParts.length}">
+${part}
+</directive_part>`,
+  )
+  .join('\n\n')}
+</system_directives>
+
+Read every directive_part above as one instruction set.
+All directive parts have equal force and must be followed together.
+If the active mode is build, implement instead of giving a chatty high-level answer.`
+      : `<system_directives>
+${systemPrompt}
+</system_directives>
+
+Follow the system directives above exactly.`;
+
+  return messages.map((message, index) => {
+    if (index !== firstUserIndex) {
+      return message;
+    }
+
+    return {
+      ...message,
+      content: `${bridgedSystemPrompt}
+
+${message.content}`,
+    };
+  });
 }
 
 function getCompletionTokenLimit(modelDetails: any): number {
@@ -85,6 +227,19 @@ export function hasToolDefinitions(tools: unknown): boolean {
   return Object.keys(tools as Record<string, unknown>).length > 0;
 }
 
+function getBuildModeExecutionContract(): string {
+  return `<build_mode_execution_contract>
+ACTIVE MODE: build
+You MUST return executable output using Bolt markup.
+Required shape:
+- One <boltArtifact id="..." title="..."> block.
+- Inside it, use <boltAction type="file" filePath="...">FULL FILE CONTENT</boltAction> for every changed/created file.
+- Include required install/start actions when needed.
+Do NOT return prose-only planning when implementation is requested.
+Do NOT return patch/diff format.
+</build_mode_execution_contract>`;
+}
+
 export async function streamText(props: {
   messages: Omit<Message, 'id'>[];
   env?: Env;
@@ -103,7 +258,14 @@ export async function streamText(props: {
     enabled: boolean;
     instructions: string;
     mode?: 'append' | 'replace';
+    autoProfileByModelSize?: boolean;
+    activeProfileKey?: string;
+    profiles?: SystemPromptProfiles;
+    promptLibraryOverrides?: Record<string, string>;
   };
+  ollamaBridgedSystemPromptSplit?: boolean;
+  forcedModel?: string;
+  forcedProvider?: string;
 }) {
   ensureWebStreamCompatibility();
 
@@ -121,16 +283,21 @@ export async function streamText(props: {
     chatMode,
     designScheme,
     customPrompt,
+    ollamaBridgedSystemPromptSplit,
+    forcedModel,
+    forcedProvider,
   } = props;
-  let currentModel = DEFAULT_MODEL;
-  let currentProvider = DEFAULT_PROVIDER.name;
+  const pinnedModel = forcedModel?.trim();
+  const pinnedProvider = forcedProvider?.trim();
+  let currentModel = pinnedModel || DEFAULT_MODEL;
+  let currentProvider = pinnedProvider || DEFAULT_PROVIDER.name;
   let processedMessages = messages.map((message) => {
     const newMessage = { ...message };
 
     if (message.role === 'user') {
       const { model, provider, content } = extractPropertiesFromMessage(message);
-      currentModel = model;
-      currentProvider = provider;
+      currentModel = pinnedModel || model;
+      currentProvider = pinnedProvider || provider;
       newMessage.content = sanitizeText(content);
     } else if (message.role == 'assistant') {
       newMessage.content = sanitizeText(message.content);
@@ -193,6 +360,15 @@ export async function streamText(props: {
     }
   }
 
+  if (pinnedModel || pinnedProvider) {
+    logger.info('Using pinned provider/model for stream call', {
+      pinnedModel,
+      pinnedProvider,
+      resolvedModel: modelDetails?.name ?? currentModel,
+      resolvedProvider: provider.name,
+    });
+  }
+
   if (!modelDetails) {
     throw new Error(`Model details were not resolved for provider ${provider.name}`);
   }
@@ -219,17 +395,49 @@ export async function streamText(props: {
       },
     }) ?? getSystemPrompt();
 
-  if (customPrompt?.enabled && customPrompt.instructions.trim().length > 0) {
-    const customPromptBody = customPrompt.instructions.trim();
+  const selectedPromptId = promptId || 'default';
+  const libraryOverride = customPrompt?.promptLibraryOverrides?.[selectedPromptId];
 
-    if (customPrompt.mode === 'replace') {
+  if (typeof libraryOverride === 'string' && libraryOverride.trim().length > 0) {
+    systemPrompt = libraryOverride;
+  }
+
+  let effectiveCustomPromptBody = customPrompt?.instructions?.trim() || '';
+  let effectiveCustomPromptMode: 'append' | 'replace' = customPrompt?.mode === 'replace' ? 'replace' : 'append';
+
+  if (customPrompt?.enabled && customPrompt.profiles) {
+    const profiles = sanitizePromptProfiles(customPrompt.profiles, customPrompt.instructions || '');
+    const modelEligibleForCustomPrompts = isModelEligibleForCustomPromptProfiles(modelDetails.name);
+    const profileKey = customPrompt.autoProfileByModelSize
+      ? resolveProfileKeyForModel(modelDetails.name)
+      : (customPrompt.activeProfileKey as keyof SystemPromptProfiles) || '16B';
+    const selectedProfile = profiles[profileKey] || profiles['16B'];
+
+    const useDefaultPromptByCapacity = DEFAULT_PROMPT_FALLBACK_PROFILE_KEYS.includes(profileKey);
+    const useDefaultPromptByProvider = !isLocalProvider(provider.name);
+
+    if (modelEligibleForCustomPrompts && selectedProfile && !useDefaultPromptByCapacity && !useDefaultPromptByProvider) {
+      effectiveCustomPromptBody = selectedProfile.instructions.trim();
+      effectiveCustomPromptMode = selectedProfile.mode;
+    } else {
+      effectiveCustomPromptBody = '';
+      effectiveCustomPromptMode = 'append';
+    }
+  }
+
+  if (customPrompt?.enabled && effectiveCustomPromptBody.length > 0) {
+    const customPromptBody = effectiveCustomPromptBody;
+
+    if (effectiveCustomPromptMode === 'replace') {
       systemPrompt = customPromptBody;
     } else {
-      systemPrompt = `${systemPrompt}
-
-<custom_system_prompt>
+      systemPrompt = `<custom_system_prompt>
 ${customPromptBody}
-</custom_system_prompt>`;
+</custom_system_prompt>
+
+${systemPrompt}
+
+`;
     }
   }
 
@@ -370,7 +578,31 @@ ${customPromptBody}
     ),
   );
 
-  const selectedSystemPrompt = chatMode === 'build' ? systemPrompt : discussPrompt();
+  const selectedSystemPromptBase = chatMode === 'build' ? systemPrompt : discussPrompt();
+  const activeMode = chatMode === 'build' ? 'build' : 'discussion';
+  const runtimeModeDirective =
+    chatMode === 'build'
+      ? `
+<mode_control>
+ACTIVE MODE: build
+This response is in build mode. Prioritize implementation and execution output.
+Do not default to analysis-only discussion when the request is implementation-oriented.
+</mode_control>
+`.trim()
+      : `
+<mode_control>
+ACTIVE MODE: discussion
+This response is in discussion mode. Prioritize planning, analysis, and explanation unless implementation is explicitly requested.
+</mode_control>
+`.trim();
+
+  const selectedSystemPrompt = `${selectedSystemPromptBase}
+
+${runtimeModeDirective}
+
+<runtime_context>
+active_mode: ${activeMode}
+</runtime_context>`;
 
   // Create simplified messages for prompt policy (role + content only)
   const policyMessages: any = processedMessages.map((message) => ({
@@ -391,14 +623,60 @@ ${customPromptBody}
     `Prompt policy selected profile: ${optimizedPrompt.profile.modelClass} (pruned=${optimizedPrompt.diagnostics.wasPruned})`,
   );
 
+  const inferredModelSizeB = inferModelSizeInBillions(modelDetails.name);
+  const isOllamaProvider = provider.name === 'Ollama';
+  const ollamaForceSingleMessageEnabled = isOllamaForceSingleMessageEnabled(serverEnv, ollamaBridgedSystemPromptSplit);
+  const forceOllamaSingleMessageForABTest = isOllamaProvider && ollamaForceSingleMessageEnabled;
+  const allowBridgedPromptSplitting = !isOllamaProvider || !ollamaForceSingleMessageEnabled;
+  const bridgedPromptPartChars = optimizedPrompt.profile.modelClass === 'small' ? 700 : 900;
+  const requiresSplitForOllamaPromptLength =
+    isOllamaProvider &&
+    optimizedPrompt.system.trim().length > Math.max(bridgedPromptPartChars, Math.floor(bridgedPromptPartChars * 1.15));
+  const shouldSplitBridgedSystemPrompt =
+    !forceOllamaSingleMessageForABTest &&
+    (allowBridgedPromptSplitting || requiresSplitForOllamaPromptLength) &&
+    isLocalProvider(provider.name) &&
+    (requiresSplitForOllamaPromptLength ||
+      optimizedPrompt.profile.modelClass === 'small' ||
+      (inferredModelSizeB !== null && inferredModelSizeB <= 16));
+
+  if (isOllamaProvider) {
+    logger.info('Ollama bridged system prompt split mode', {
+      provider: provider.name,
+      model: modelDetails.name,
+      forceSingleMessageEnabled: ollamaForceSingleMessageEnabled,
+      forceOllamaSingleMessageForABTest,
+      automaticSplitAllowed: !forceOllamaSingleMessageForABTest,
+      requiresSplitForOllamaPromptLength,
+      shouldSplitBridgedSystemPrompt,
+      profile: optimizedPrompt.profile.modelClass,
+      bridgedPromptChars: optimizedPrompt.system.trim().length,
+      splitPartChars: bridgedPromptPartChars,
+      envFlagName: 'OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT',
+    });
+  } else if (!allowBridgedPromptSplitting && isLocalProvider(provider.name)) {
+    logger.info('Bridged system prompt splitting disabled for provider', {
+      provider: provider.name,
+      model: modelDetails.name,
+      profile: optimizedPrompt.profile.modelClass,
+    });
+  }
+
+  const modelMessages = shouldBridgeSystemPromptToMessages(provider.name)
+    ? bridgeSystemPromptIntoMessages(optimizedPrompt.messages, optimizedPrompt.system, {
+        splitIntoParts: shouldSplitBridgedSystemPrompt,
+        maxPartChars: bridgedPromptPartChars,
+      })
+    : optimizedPrompt.messages;
+
   const isResponsesModel = isOpenAIResponsesModel(provider.name, modelDetails.name);
   const tokenParams = isReasoning ? { maxCompletionTokens: safeMaxTokens } : { maxTokens: safeMaxTokens };
 
-  logger.info(`Preparing convertToModelMessages for ${optimizedPrompt.messages.length} messages`);
-  logger.debug(`Messages to convert: ${JSON.stringify(optimizedPrompt.messages.slice(0, 2))}`);
+  logger.info(`Preparing convertToModelMessages for ${modelMessages.length} messages`);
+  logger.debug(`Messages to convert: ${JSON.stringify(modelMessages.slice(0, 2))}`);
 
   // Build messages with all required fields for convertToModelMessages
-  const messagesToConvert = optimizedPrompt.messages.map((msg: any, idx: number) => ({
+  const messagesToConvert = modelMessages.map((msg: any, idx: number) => ({
     id: `msg-${idx}`,
     role: msg.role === 'user' ? 'user' : 'assistant',
     content: msg.content,
@@ -422,6 +700,9 @@ ${customPromptBody}
     convertedMessages = messagesToConvert;
   }
 
+  const finalSystemPrompt =
+    chatMode === 'build' ? `${optimizedPrompt.system}\n\n${getBuildModeExecutionContract()}` : optimizedPrompt.system;
+
   const streamParams = {
     model: provider.getModelInstance({
       model: modelDetails.name,
@@ -429,7 +710,7 @@ ${customPromptBody}
       apiKeys,
       providerSettings,
     }),
-    system: optimizedPrompt.system,
+    system: finalSystemPrompt,
     ...tokenParams,
     messages: convertedMessages,
     ...filteredOptions,
@@ -460,7 +741,27 @@ ${customPromptBody}
   try {
     logger.info(`About to call _streamText for model "${modelDetails.name}"`);
 
+    const streamInitializationStart = Date.now();
     const result = await _streamText(streamParams);
+    const streamInitializationMs = Date.now() - streamInitializationStart;
+
+    logger.info('Stream initialized', {
+      model: modelDetails.name,
+      provider: provider.name,
+      streamInitializationMs,
+      localProvider: isLocalProvider(provider.name),
+      messageCount: convertedMessages.length,
+    });
+
+    if (streamInitializationMs > 5000) {
+      logger.warn('Slow stream initialization detected', {
+        model: modelDetails.name,
+        provider: provider.name,
+        streamInitializationMs,
+        localProvider: isLocalProvider(provider.name),
+      });
+    }
+
     logger.info(`_streamText returned successfully for model "${modelDetails.name}"`);
 
     return result;

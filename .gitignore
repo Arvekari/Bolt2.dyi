@@ -56,3 +56,5 @@ bolt.work/n8n/copilot-inbox/
 
 # local n8n ongoing-cycle state (never commit)
 .n8n-ongoing-cycle.json
+
+.bolt-memory.sqlite

@@ -14,6 +14,67 @@
  */
 
 import { parseDataStreamPart } from '@ai-sdk/ui-utils';
+import { createScopedLogger } from '~/utils/logger';
+
+const logger = createScopedLogger('BoltChatTransport');
+const DEFAULT_FIRST_BYTE_WARNING_MS = 15000;
+const LOCAL_PROVIDER_FIRST_BYTE_WARNING_MS = 45000;
+
+const LOCAL_PROVIDER_NAMES = new Set(['Ollama', 'LMStudio', 'OpenAILike']);
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isFetchNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    error.name === 'TypeError' &&
+    (message.includes('network error') || message.includes('failed to fetch') || message.includes('fetch failed'))
+  );
+}
+
+function serializeTransportError(params: {
+  endpoint: string;
+  selectedProviderName?: string;
+  requestStartedAtMs: number;
+  cause: unknown;
+  abortSignal?: AbortSignal;
+}): string {
+  const cause = params.cause instanceof Error ? params.cause : new Error(String(params.cause));
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+  const online = typeof navigator !== 'undefined' ? navigator.onLine : undefined;
+
+  return JSON.stringify({
+    message: `Network error reaching chat endpoint (${params.endpoint}).`,
+    error: 'Chat transport network failure',
+    statusCode: 503,
+    provider: params.selectedProviderName,
+    type: 'network',
+    isRetryable: true,
+    diagnostics: {
+      endpoint: params.endpoint,
+      origin,
+      online,
+      aborted: Boolean(params.abortSignal?.aborted),
+      elapsedMs: Date.now() - params.requestStartedAtMs,
+      causeName: cause.name,
+      causeMessage: cause.message,
+    },
+  });
+}
+
+function getFirstByteWarningMs(providerName?: string): number {
+  if (providerName && LOCAL_PROVIDER_NAMES.has(providerName)) {
+    return LOCAL_PROVIDER_FIRST_BYTE_WARNING_MS;
+  }
+
+  return DEFAULT_FIRST_BYTE_WARNING_MS;
+}
 
 function extractTextContent(message: { content?: string; parts?: Array<{ type: string; text?: string }> }): string {
   if (typeof message.content === 'string' && message.content.length > 0) {
@@ -28,15 +89,30 @@ function extractTextContent(message: { content?: string; parts?: Array<{ type: s
   return '';
 }
 
+function createClientRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /**
  * Converts a ReadableStream of v2 data-stream bytes into a ReadableStream of
  * UIMessageChunks that v3 @ai-sdk/react can consume.
  */
-function buildUIMessageChunkStream(byteStream: ReadableStream<Uint8Array>): ReadableStream<Record<string, unknown>> {
+function buildUIMessageChunkStream(
+  byteStream: ReadableStream<Uint8Array>,
+  diagnostics?: {
+    onFirstChunk?: () => void;
+    onStreamEndedWithoutChunks?: () => void;
+  },
+): ReadableStream<Record<string, unknown>> {
   const decoder = new TextDecoder();
   let buffer = '';
   const textId = 'text-1';
   let textStarted = false;
+  let hasReceivedChunk = false;
 
   const transform = new TransformStream<Uint8Array, Record<string, unknown>>({
     start(controller) {
@@ -45,6 +121,11 @@ function buildUIMessageChunkStream(byteStream: ReadableStream<Uint8Array>): Read
     },
 
     transform(chunk, controller) {
+      if (!hasReceivedChunk) {
+        hasReceivedChunk = true;
+        diagnostics?.onFirstChunk?.();
+      }
+
       buffer += decoder.decode(chunk, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
@@ -89,6 +170,10 @@ function buildUIMessageChunkStream(byteStream: ReadableStream<Uint8Array>): Read
     },
 
     flush(controller) {
+      if (!hasReceivedChunk) {
+        diagnostics?.onStreamEndedWithoutChunks?.();
+      }
+
       // Process any remaining buffered content
       if (buffer.trim()) {
         try {
@@ -144,6 +229,12 @@ export class BoltChatTransport {
     trigger?: string;
     messageId?: string;
   }): Promise<ReadableStream<Record<string, unknown>>> {
+    const requestStartedAtMs = Date.now();
+    const clientRequestId =
+      typeof options.body?.clientRequestId === 'string' && options.body.clientRequestId.length > 0
+        ? (options.body.clientRequestId as string)
+        : createClientRequestId();
+
     // Convert v3 UIMessages to the v2 format the backend expects
     const v2Messages = options.messages.map((m) => ({
       id: m.id,
@@ -153,29 +244,205 @@ export class BoltChatTransport {
 
     const requestBody: Record<string, unknown> = {
       messages: v2Messages,
+      clientRequestId,
       ...this.getBody(),
       ...(options.body ?? {}),
     };
 
-    const response = await fetch(this.apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
-      },
-      body: JSON.stringify(requestBody),
-      signal: options.abortSignal,
+    const selectedProviderName =
+      typeof requestBody.selectedProviderName === 'string' ? (requestBody.selectedProviderName as string) : undefined;
+    const firstByteWarningMs = getFirstByteWarningMs(selectedProviderName);
+
+    logger.info('Chat request started', {
+      endpoint: this.apiEndpoint,
+      clientRequestId,
+      messageCount: v2Messages.length,
+      hasAbortSignal: Boolean(options.abortSignal),
+      selectedProviderName,
+      firstByteWarningMs,
+    });
+
+    let firstByteTimer: ReturnType<typeof setTimeout> | undefined;
+    let abortHandler: (() => void) | undefined;
+    let hasReceivedFirstByte = false;
+
+    const clearFirstByteTimer = () => {
+      if (firstByteTimer) {
+        clearTimeout(firstByteTimer);
+        firstByteTimer = undefined;
+      }
+    };
+
+    const markFirstByte = () => {
+      if (hasReceivedFirstByte) {
+        return;
+      }
+
+      hasReceivedFirstByte = true;
+      clearFirstByteTimer();
+      logger.info('First response byte received', {
+        endpoint: this.apiEndpoint,
+        clientRequestId,
+        elapsedMs: Date.now() - requestStartedAtMs,
+      });
+
+      if (options.abortSignal && abortHandler) {
+        options.abortSignal.removeEventListener('abort', abortHandler);
+      }
+    };
+
+    firstByteTimer = setTimeout(() => {
+      if (hasReceivedFirstByte || options.abortSignal?.aborted) {
+        return;
+      }
+
+      logger.warn('No response bytes received within first-byte threshold', {
+        endpoint: this.apiEndpoint,
+        selectedProviderName,
+        thresholdMs: firstByteWarningMs,
+        elapsedMs: Date.now() - requestStartedAtMs,
+      });
+    }, firstByteWarningMs);
+
+    if (options.abortSignal) {
+      abortHandler = () => {
+        clearFirstByteTimer();
+        logger.info('Chat request aborted before first-byte completion', {
+          endpoint: this.apiEndpoint,
+          clientRequestId,
+          elapsedMs: Date.now() - requestStartedAtMs,
+          hadFirstByte: hasReceivedFirstByte,
+        });
+      };
+      options.abortSignal.addEventListener('abort', abortHandler, { once: true });
+    }
+
+    let response: Response;
+
+    const runFetch = async (body: Record<string, unknown>) =>
+      fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Request-Id': clientRequestId,
+          ...(options.headers ?? {}),
+        },
+        body: JSON.stringify(body),
+        signal: options.abortSignal,
+      });
+
+    try {
+      response = await runFetch(requestBody);
+    } catch (error) {
+      const shouldRetry =
+        selectedProviderName !== undefined &&
+        LOCAL_PROVIDER_NAMES.has(selectedProviderName) &&
+        isFetchNetworkError(error) &&
+        !options.abortSignal?.aborted;
+
+      if (shouldRetry) {
+        const forceSingleMessageForRequest = requestBody.ollamaBridgedSystemPromptSplit === true;
+        const useAutomaticSplitFallback = selectedProviderName === 'Ollama' && forceSingleMessageForRequest;
+        const retryBody = useAutomaticSplitFallback
+          ? {
+              ...requestBody,
+              ollamaBridgedSystemPromptSplit: false,
+            }
+          : requestBody;
+
+        logger.warn('Initial chat fetch failed; retrying once for local provider', {
+          endpoint: this.apiEndpoint,
+          clientRequestId,
+          selectedProviderName,
+          elapsedMs: Date.now() - requestStartedAtMs,
+          automaticSplitFallbackApplied: useAutomaticSplitFallback,
+        });
+
+        await delay(600);
+
+        try {
+          response = await runFetch(retryBody);
+        } catch (retryError) {
+          clearFirstByteTimer();
+
+          if (options.abortSignal && abortHandler) {
+            options.abortSignal.removeEventListener('abort', abortHandler);
+          }
+
+          throw new Error(
+            serializeTransportError({
+              endpoint: this.apiEndpoint,
+              selectedProviderName,
+              requestStartedAtMs,
+              cause: retryError,
+              abortSignal: options.abortSignal,
+            }),
+          );
+        }
+      } else {
+        clearFirstByteTimer();
+
+        if (options.abortSignal && abortHandler) {
+          options.abortSignal.removeEventListener('abort', abortHandler);
+        }
+
+        throw new Error(
+          serializeTransportError({
+            endpoint: this.apiEndpoint,
+            selectedProviderName,
+            requestStartedAtMs,
+            cause: error,
+            abortSignal: options.abortSignal,
+          }),
+        );
+      }
+    }
+
+    logger.info('Chat response headers received', {
+      endpoint: this.apiEndpoint,
+      clientRequestId,
+      status: response.status,
+      elapsedMs: Date.now() - requestStartedAtMs,
     });
 
     if (!response.ok) {
+      clearFirstByteTimer();
+
+      if (options.abortSignal && abortHandler) {
+        options.abortSignal.removeEventListener('abort', abortHandler);
+      }
+
       const errorText = await response.text().catch(() => `HTTP ${response.status}`);
       throw new Error(`Chat request failed (${response.status}): ${errorText}`);
     }
 
     if (!response.body) {
+      clearFirstByteTimer();
+
+      if (options.abortSignal && abortHandler) {
+        options.abortSignal.removeEventListener('abort', abortHandler);
+      }
+
       throw new Error('Chat API returned no response body');
     }
 
-    return buildUIMessageChunkStream(response.body);
+    return buildUIMessageChunkStream(response.body, {
+      onFirstChunk: markFirstByte,
+      onStreamEndedWithoutChunks: () => {
+        clearFirstByteTimer();
+
+        if (options.abortSignal && abortHandler) {
+          options.abortSignal.removeEventListener('abort', abortHandler);
+        }
+
+        if (!hasReceivedFirstByte) {
+          logger.warn('Stream ended without response bytes', {
+            endpoint: this.apiEndpoint,
+            clientRequestId,
+            elapsedMs: Date.now() - requestStartedAtMs,
+          });
+        }
+      },
+    });
   }
 }

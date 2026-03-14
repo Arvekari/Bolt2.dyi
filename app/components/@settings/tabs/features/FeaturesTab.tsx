@@ -106,8 +106,6 @@ const FeatureSection = memo(
 
 export default function FeaturesTab() {
   const {
-    debug,
-    enableDebugMode,
     autoSelectTemplate,
     isLatestBranch,
     contextOptimizationEnabled,
@@ -175,17 +173,12 @@ export default function FeaturesTab() {
           break;
         }
 
-        case 'debugPanel': {
-          enableDebugMode(enabled);
-          toast.success(`Debug panel button ${enabled ? 'enabled' : 'disabled'}`);
-          break;
-        }
 
         default:
           break;
       }
     },
-    [enableLatestBranch, setAutoSelectTemplate, enableContextOptimization, setEventLogs, enableDebugMode],
+    [enableLatestBranch, setAutoSelectTemplate, enableContextOptimization, setEventLogs],
   );
 
   const features = {
@@ -193,11 +186,11 @@ export default function FeaturesTab() {
       {
         id: 'latestBranch',
         title: 'Main Branch Updates',
-        description: 'Notify when a newer Bolt2.dyi version is available and allow update attempts',
+        description: 'Notify when a newer Opurion version is available and allow update attempts',
         icon: 'i-ph:git-branch',
         enabled: isLatestBranch,
         tooltip:
-          'When enabled, the app checks Bolt2.dyi main releases and can attempt internal update flow where supported',
+          'When enabled, the app checks Opurion main releases and can attempt internal update flow where supported',
       },
       {
         id: 'autoSelectTemplate',
@@ -222,14 +215,6 @@ export default function FeaturesTab() {
         icon: 'i-ph:list-bullets',
         enabled: eventLogs,
         tooltip: 'Enabled by default to record detailed logs of system events and user actions',
-      },
-      {
-        id: 'debugPanel',
-        title: 'Show Chat Debug Button',
-        description: 'Show or hide the "Show debug panel" button while streaming',
-        icon: 'i-ph:bug-droid',
-        enabled: debug,
-        tooltip: 'Turn this on to inspect send routing, response traces, and error details from chat execution logs.',
       },
     ],
     beta: [],

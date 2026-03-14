@@ -8,6 +8,8 @@ import { binDates } from './date-binning';
 import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 import { useStore } from '@nanostores/react';
 import { profileStore } from '~/lib/stores/profile';
+import { ProjectsWorkspacePanel } from './ProjectsWorkspacePanel';
+import { ArtifactsMarketplacePanel } from './ArtifactsMarketplacePanel';
 
 interface MenuProps {
   collapsed: boolean;
@@ -93,7 +95,12 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
   }, [loggingOut]);
 
   // Ordered: Projects / Artifacts / Code — gap — Chats
-  const navItems: Array<{ key: 'projects' | 'artifacts' | 'code' | 'chats'; label: string; icon: string; separator?: boolean }> = [
+  const navItems: Array<{
+    key: 'projects' | 'artifacts' | 'code' | 'chats';
+    label: string;
+    icon: string;
+    separator?: boolean;
+  }> = [
     { key: 'projects', label: 'Projects', icon: '📁' },
     { key: 'artifacts', label: 'Artifacts', icon: '📦' },
     { key: 'code', label: 'Code', icon: '{ }' },
@@ -131,28 +138,17 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
         >
           {!collapsed && (
             <img
-              src="/logo.svg"
-              alt="bolt2.dyi"
+              src="/logo-opurion-full.png"
+              alt="Opurion"
               style={{ height: '30px', width: 'auto', objectFit: 'contain', flex: 1, minWidth: 0 }}
             />
           )}
           {collapsed && (
-            /* Just the bolt-mark icon portion of the logo */
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 128 128"
-              style={{ width: '36px', height: '36px', flexShrink: 0 }}
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient id="boltPurpleMenu" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#A578FF" />
-                  <stop offset="100%" stopColor="#7C3AED" />
-                </linearGradient>
-              </defs>
-              <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#boltPurpleMenu)" />
-              <path d="M66 30L40 74H61L50 106L88 59H66L80 30Z" fill="#FFFFFF" />
-            </svg>
+            <img
+              src="/logo-opurion-mark.png"
+              alt="Opurion"
+              style={{ width: '36px', height: '36px', objectFit: 'contain', flexShrink: 0 }}
+            />
           )}
           <button
             onClick={onToggle}
@@ -207,7 +203,10 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
           {navItems.map(({ key, label, icon, separator }) => (
             <>
               {separator && (
-                <div key={`sep-${key}`} style={{ height: '1px', background: 'var(--bolt-elements-borderColor, #2b2b33)', margin: '4px 0' }} />
+                <div
+                  key={`sep-${key}`}
+                  style={{ height: '1px', background: 'var(--bolt-elements-borderColor, #2b2b33)', margin: '4px 0' }}
+                />
               )}
               <button
                 key={key}
@@ -268,7 +267,9 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
               />
               <div style={{ flex: 1, overflowY: 'auto', fontSize: '13px' }}>
                 {filteredList.length === 0 && (
-                  <div style={{ padding: '6px 10px', color: 'var(--bolt-elements-textTertiary)' }}>No conversations</div>
+                  <div style={{ padding: '6px 10px', color: 'var(--bolt-elements-textTertiary)' }}>
+                    No conversations
+                  </div>
                 )}
                 <DialogRoot open={dialogContent !== null}>
                   {binDates(filteredList).map(({ category, items }) => (
@@ -276,7 +277,7 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
                       <div
                         style={{
                           padding: '4px 10px',
-                        color: 'var(--bolt-elements-textTertiary)',
+                          color: 'var(--bolt-elements-textTertiary)',
                           fontSize: '11px',
                           textTransform: 'uppercase',
                           letterSpacing: '.05em',
@@ -304,13 +305,13 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
                   <Dialog onBackdrop={() => setDialogContent(null)} onClose={() => setDialogContent(null)}>
                     {dialogContent?.type === 'delete' && (
                       <>
-                        <div className="p-6 bg-white dark:bg-gray-950">
-                          <DialogTitle className="text-gray-900 dark:text-white">Delete Chat?</DialogTitle>
-                          <DialogDescription className="mt-2 text-gray-600 dark:text-gray-400">
+                        <div className="p-6 bg-bolt-elements-background-depth-1">
+                          <DialogTitle className="text-bolt-elements-textPrimary">Delete Chat?</DialogTitle>
+                          <DialogDescription className="mt-2 text-bolt-elements-textSecondary">
                             Delete &quot;{dialogContent.item.description}&quot;?
                           </DialogDescription>
                         </div>
-                        <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+                        <div className="flex justify-end gap-3 px-6 py-4 bg-bolt-elements-background-depth-2 border-t border-bolt-elements-borderColor">
                           <DialogButton type="secondary" onClick={() => setDialogContent(null)}>
                             Cancel
                           </DialogButton>
@@ -334,20 +335,23 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
 
           {/* Project / Artifact / Code stub panels */}
           {!collapsed && activeSection !== 'chats' && (
-            <div
-              style={{
-                marginTop: '8px',
-                padding: '10px',
-                borderRadius: '8px',
-              border: '1px solid var(--bolt-elements-borderColor)',
-              background: 'var(--bolt-elements-background-depth-2)',
-              color: 'var(--bolt-elements-textTertiary)',
-                fontSize: '13px',
-              }}
-            >
-              {activeSection === 'projects' && 'Projects will show shared workspaces and collaboration here.'}
-              {activeSection === 'artifacts' && 'Artifacts will show reusable components and modules here.'}
-              {activeSection === 'code' && 'Code section will show project code context and shared assets here.'}
+            <div style={{ marginTop: '8px', overflowY: 'auto', maxHeight: '100%' }}>
+              {activeSection === 'projects' && <ProjectsWorkspacePanel />}
+              {activeSection === 'artifacts' && <ArtifactsMarketplacePanel />}
+              {activeSection === 'code' && (
+                <div
+                  style={{
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--bolt-elements-borderColor)',
+                    background: 'var(--bolt-elements-background-depth-2)',
+                    color: 'var(--bolt-elements-textTertiary)',
+                    fontSize: '13px',
+                  }}
+                >
+                  Code section will show project code context and shared assets here.
+                </div>
+              )}
             </div>
           )}
         </nav>
@@ -365,7 +369,10 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
         >
           {/* Theme slider — horizontal when expanded, vertical when collapsed */}
           {!collapsed ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} title={themeMode === 'dark' ? 'Switch to light' : 'Switch to dark'}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              title={themeMode === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            >
               <span style={{ fontSize: '13px' }}>☀️</span>
               <label style={{ position: 'relative', width: '36px', height: '20px', cursor: 'pointer', flexShrink: 0 }}>
                 <input
@@ -374,27 +381,36 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
                   onChange={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
                   style={{ display: 'none' }}
                 />
-                <span style={{
-                  position: 'absolute', inset: 0,
-                  background: themeMode === 'dark' ? '#5a5a7a' : '#888',
-                  borderRadius: '20px',
-                  transition: '.2s',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  top: '2px',
-                  left: themeMode === 'dark' ? '18px' : '2px',
-                  width: '16px', height: '16px',
-                  background: 'white',
-                  borderRadius: '50%',
-                  transition: '.2s',
-                }} />
+                <span
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: themeMode === 'dark' ? '#5a5a7a' : '#888',
+                    borderRadius: '20px',
+                    transition: '.2s',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    left: themeMode === 'dark' ? '18px' : '2px',
+                    width: '16px',
+                    height: '16px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    transition: '.2s',
+                  }}
+                />
               </label>
               <span style={{ fontSize: '13px' }}>🌙</span>
             </div>
           ) : (
             // Vertical slider when collapsed
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }} title={themeMode === 'dark' ? 'Switch to light' : 'Switch to dark'}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}
+              title={themeMode === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            >
               <span style={{ fontSize: '11px' }}>☀️</span>
               <label style={{ position: 'relative', width: '20px', height: '36px', cursor: 'pointer' }}>
                 <input
@@ -403,21 +419,27 @@ export const Menu = ({ collapsed, onToggle, onOpenSettings }: MenuProps) => {
                   onChange={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
                   style={{ display: 'none' }}
                 />
-                <span style={{
-                  position: 'absolute', inset: 0,
-                  background: themeMode === 'dark' ? '#5a5a7a' : '#888',
-                  borderRadius: '20px',
-                  transition: '.2s',
-                }} />
-                <span style={{
-                  position: 'absolute',
-                  left: '2px',
-                  top: themeMode === 'dark' ? '18px' : '2px',
-                  width: '16px', height: '16px',
-                  background: 'white',
-                  borderRadius: '50%',
-                  transition: '.2s',
-                }} />
+                <span
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: themeMode === 'dark' ? '#5a5a7a' : '#888',
+                    borderRadius: '20px',
+                    transition: '.2s',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '2px',
+                    top: themeMode === 'dark' ? '18px' : '2px',
+                    width: '16px',
+                    height: '16px',
+                    background: 'white',
+                    borderRadius: '50%',
+                    transition: '.2s',
+                  }}
+                />
               </label>
               <span style={{ fontSize: '11px' }}>🌙</span>
             </div>

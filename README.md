@@ -1,6 +1,6 @@
-# Bolt2.dyi
+# Opurion
 
-**Bolt2.dyi** is a structured and modular fork of the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy).
+**Opurion** is a structured and modular fork of the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy).
 
 It keeps the practical AI workspace spirit of the original project, but pushes the platform further in three major directions:
 
@@ -8,13 +8,13 @@ It keeps the practical AI workspace spirit of the original project, but pushes t
 - a more modern workspace and settings UX
 - broader and more structured provider/model support
 
-Bolt2.dyi is no longer only a chat UI fork. It is evolving toward a maintainable AI workspace platform with controlled integrations, better runtime reliability, and a stronger foundation for settings, user scope, collaboration, and reusable artifacts.
+Opurion is no longer only a chat UI fork. It is evolving toward a maintainable AI workspace platform with controlled integrations, better runtime reliability, and a stronger foundation for settings, user scope, collaboration, and reusable artifacts.
 
 ---
 
 ## Original Project
 
-Bolt2.dyi is based on the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy) project.
+Opurion is based on the original [bolt.diy](https://github.com/stackblitz-labs/bolt.diy) project.
 
 That link is intentionally preserved here, because the original project provided the foundation this fork builds on.
 
@@ -38,7 +38,7 @@ That link is intentionally preserved here, because the original project provided
 
 ## Why This Fork Exists
 
-Bolt2.dyi was created to take the original idea further in a more structured direction.
+Opurion was created to take the original idea further in a more structured direction.
 
 The goal is to evolve from:
 
@@ -60,9 +60,9 @@ The project prioritizes:
 
 ---
 
-## What Has Changed in Bolt2.dyi
+## What Has Changed in Opurion
 
-Compared to a simpler baseline fork direction, Bolt2.dyi has already introduced significant work in areas such as:
+Compared to a simpler baseline fork direction, Opurion has already introduced significant work in areas such as:
 
 - modernized workspace UX
 - redesigned settings control panel direction
@@ -82,7 +82,7 @@ This fork-specific work is tracked in the project changelog.
 
 ## Current Product Direction
 
-Bolt2.dyi is being shaped around five practical pillars.
+Opurion is being shaped around five practical pillars.
 
 ### 1. Modern AI Workspace UX
 
@@ -108,7 +108,7 @@ Artifacts, collaboration scope, user-scoped persistence, auth boundaries, and ba
 
 ## Architecture Overview
 
-Bolt2.dyi follows a layered dependency model:
+Opurion follows a layered dependency model:
 
 `ui → platform → core → integrations → infrastructure`
 
@@ -173,7 +173,7 @@ These principles are already part of the current repo direction.
 
 ## UX Direction
 
-Bolt2.dyi has already moved beyond a basic chat layout direction.
+Opurion has already moved beyond a basic chat layout direction.
 
 Recent UX work in the fork includes:
 
@@ -194,7 +194,7 @@ In practice, the project is moving toward a more modern assistant workspace mode
 
 ## Settings and Control Panel Direction
 
-Settings in Bolt2.dyi are no longer treated as an afterthought.
+Settings in Opurion are no longer treated as an afterthought.
 
 The project is actively moving toward a settings workspace / control panel model with:
 
@@ -210,7 +210,7 @@ This is an important part of the project’s UX direction.
 
 ## Provider and Model Support
 
-Bolt2.dyi has expanded provider/model support significantly.
+Opurion has expanded provider/model support significantly.
 
 The project now supports a broad multi-provider selection experience and includes support for a large set of models across providers such as:
 
@@ -226,7 +226,7 @@ The project now supports a broad multi-provider selection experience and include
 
 Model/provider selection has also been moved into a more persistent top-level workspace pattern, and provider/model visibility is tied to configured keys/settings rather than being scattered loosely in the chat surface.
 
-The exact supported set will continue to evolve, but the direction is clear: Bolt2.dyi is designed to be a practical multi-provider workspace.
+The exact supported set will continue to evolve, but the direction is clear: Opurion is designed to be a practical multi-provider workspace.
 
 ---
 
@@ -250,7 +250,7 @@ The project is actively prioritizing "works reliably in real use" over superfici
 
 ## Persistence, Auth, and User Scope
 
-Bolt2.dyi is moving beyond a purely loose single-user state model.
+Opurion is moving beyond a purely loose single-user state model.
 
 The project now includes fork-level work in areas such as:
 
@@ -267,7 +267,7 @@ This gives the project a better foundation for future multi-user and collaborati
 
 ## Artifacts and Collaboration Foundations
 
-Bolt2.dyi is also laying groundwork for more structured reuse and collaboration.
+Opurion is also laying groundwork for more structured reuse and collaboration.
 
 Fork work already includes:
 
@@ -283,7 +283,7 @@ These areas are still evolving, but they are already part of the real project di
 
 ## Database and Persistence Modes
 
-Bolt2.dyi supports multiple persistence modes and is designed to degrade gracefully.
+Opurion supports multiple persistence modes and is designed to degrade gracefully.
 
 The current database direction includes:
 
@@ -303,7 +303,7 @@ The current database direction includes:
 
 ## Optional Integrations
 
-Bolt2.dyi is not designed around bundling every service by default.
+Opurion is not designed around bundling every service by default.
 
 The project documentation already describes optional integration patterns including external integrations such as MCP and n8n, with graceful failure expectations rather than mandatory bundled assumptions.
 
@@ -318,7 +318,7 @@ This philosophy remains important:
 
 ## Security Direction
 
-Security and control boundaries matter in Bolt2.dyi.
+Security and control boundaries matter in Opurion.
 
 The current project direction includes security-related areas such as:
 
@@ -336,7 +336,7 @@ That remains part of the project’s direction as the product evolves.
 
 ## Testing and Validation Direction
 
-Bolt2.dyi is increasingly test- and guardrail-oriented.
+Opurion is increasingly test- and guardrail-oriented.
 
 The fork changelog shows significant investment in:
 
@@ -383,8 +383,8 @@ Use the existing structure unless there is a strong reason to change it.
 
 Clone the repo:
 
-    git clone https://github.com/Arvekari/Bolt2.dyi.git
-    cd Bolt2.dyi
+    git clone https://github.com/Arvekari/Opurion.git
+    cd Opurion
 
 Install dependencies:
 
@@ -412,7 +412,7 @@ Depending on what you are changing, you may also want to run additional validati
 
 ## Who This Project Is For
 
-Bolt2.dyi is useful for people who want:
+Opurion is useful for people who want:
 
 - a more structured fork of bolt.diy
 - a multi-provider AI workspace direction
@@ -432,7 +432,7 @@ Please read:
 
 before opening a pull request.
 
-Bolt2.dyi benefits most from contributions that improve:
+Opurion benefits most from contributions that improve:
 
 - architecture
 - runtime reliability
@@ -450,7 +450,7 @@ Fork-specific changes are tracked in:
 
 `CHANGELOG.md`
 
-This changelog is specific to Bolt2.dyi and does not attempt to mirror upstream bolt.diy release history.
+This changelog is specific to Opurion and does not attempt to mirror upstream bolt.diy release history.
 
 ---
 
@@ -458,13 +458,13 @@ This changelog is specific to Bolt2.dyi and does not attempt to mirror upstream 
 
 - original foundation: [bolt.diy](https://github.com/stackblitz-labs/bolt.diy)
 - fork direction, architecture evolution, and continued development: Markku Arvekari
-- thanks to everyone who has contributed ideas, fixes, validation, and iteration to Bolt2.dyi
+- thanks to everyone who has contributed ideas, fixes, validation, and iteration to Opurion
 
 ---
 
 ## Project Status
 
-Bolt2.dyi is active, evolving, and already significantly beyond a cosmetic fork.
+Opurion is active, evolving, and already significantly beyond a cosmetic fork.
 
 The architecture direction is real.  
 The UX direction is real.  

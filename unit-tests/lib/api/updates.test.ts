@@ -14,13 +14,13 @@ describe('lib/api/updates', () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ version: '1.0.0', name: 'bolt2.dyi' }), {
+        new Response(JSON.stringify({ version: '1.0.0', name: 'opurion' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ version: '1.1.0', name: 'bolt2.dyi' }), {
+        new Response(JSON.stringify({ version: '1.1.0', name: 'opurion' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
@@ -31,7 +31,7 @@ describe('lib/api/updates', () => {
     expect(result.available).toBe(true);
     expect(result.currentVersion).toBe('1.0.0');
     expect(result.version).toBe('1.1.0');
-    expect(result.source).toBe('Arvekari/Bolt2.dyi');
+    expect(result.source).toBe('Arvekari/Opurion');
   });
 
   it('sends auto intent payload for self-update requests', async () => {

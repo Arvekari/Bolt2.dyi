@@ -1,6 +1,6 @@
 # Docker Documentation
 
-Docker docs for `Bolt2.dyi` are organized here.
+Docker docs for `Opurion` are organized here.
 
 ## Core
 

@@ -1,18 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-labelledby="title desc">
-    <title id="title">Bolt2.dyi logo</title>
-    <desc id="desc">Bolt2 in purple and dot dyi in orange</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 160" role="img" aria-labelledby="title desc">
+    <title id="title">Opurion logo</title>
+    <desc id="desc">Opurion wordmark with green, yellow and orange identity</desc>
     <defs>
-        <linearGradient id="boltPurple" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#A578FF" />
-            <stop offset="100%" stop-color="#7C3AED" />
+        <linearGradient id="opurionGlow" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#84CC16" />
+            <stop offset="55%" stop-color="#EAB308" />
+            <stop offset="100%" stop-color="#F59E0B" />
         </linearGradient>
     </defs>
 
-    <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#boltPurple)" />
+    <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#opurionGlow)" />
     <path d="M66 30L40 74H61L50 106L88 59H66L80 30Z" fill="#FFFFFF"/>
 
     <g font-family="Inter, Segoe UI, Arial, sans-serif" font-weight="700" font-size="72" dominant-baseline="middle">
-        <text x="146" y="80" fill="#8B5CF6">bolt2</text>
-        <text x="338" y="80" fill="#F59E0B">.dyi</text>
+        <text x="146" y="80" fill="#84CC16">Opu</text>
+        <text x="300" y="80" fill="#EAB308">ri</text>
+        <text x="385" y="80" fill="#F59E0B">on</text>
     </g>
 </svg>

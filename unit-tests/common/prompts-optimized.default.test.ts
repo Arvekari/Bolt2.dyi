@@ -9,7 +9,7 @@ describe('optimized prompt default', () => {
       modificationTagName: 'bolt_file_modifications',
     });
 
-    expect(prompt).toContain('You are Bolt');
+    expect(prompt).toContain('You are Opurion');
     expect(prompt).toContain('database_instructions');
   });
 });

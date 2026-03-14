@@ -64,6 +64,46 @@ class ActionCommandError extends Error {
   }
 }
 
+type ShellCommandExecutionContext = {
+  command: string;
+  cwd: string;
+};
+
+export function commandRequiresNodePackageManifest(command: string): boolean {
+  const normalized = command.trim().toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return /^(npm|pnpm|yarn)\s+(install|i|run|exec|add|remove|update|upgrade|ci|test|start|dev|build|preview)\b/.test(
+    normalized,
+  );
+}
+
+export function getShellCommandExecutionContexts(command: string, baseDir: string): ShellCommandExecutionContext[] {
+  const segments = command
+    .split(/&&|;/g)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const contexts: ShellCommandExecutionContext[] = [];
+  let currentDir = baseDir;
+
+  for (const segment of segments) {
+    const cdMatch = segment.match(/^cd\s+(.+)$/i);
+
+    if (cdMatch) {
+      const rawTarget = cdMatch[1].trim().replace(/^['"]|['"]$/g, '');
+      currentDir = nodePath.isAbsolute(rawTarget) ? nodePath.normalize(rawTarget) : nodePath.resolve(currentDir, rawTarget);
+      continue;
+    }
+
+    contexts.push({ command: segment, cwd: currentDir });
+  }
+
+  return contexts;
+}
+
 export class ActionRunner {
   #webcontainer: Promise<WebContainer>;
   #currentExecutionPromise: Promise<void> = Promise.resolve();
@@ -298,6 +338,10 @@ export class ActionRunner {
 
     // Pre-validate command for common issues
     const validationResult = await this.#validateShellCommand(action.content);
+
+    if (validationResult.fatalError) {
+      throw new ActionCommandError(validationResult.fatalError.title, validationResult.fatalError.details);
+    }
 
     if (validationResult.shouldModify && validationResult.modifiedCommand) {
       logger.debug(`Modified command: ${action.content} -> ${validationResult.modifiedCommand}`);
@@ -615,8 +659,40 @@ export class ActionRunner {
     shouldModify: boolean;
     modifiedCommand?: string;
     warning?: string;
+    fatalError?: {
+      title: string;
+      details: string;
+    };
   }> {
     const trimmedCommand = command.trim();
+
+    try {
+      const webcontainer = await this.#webcontainer;
+      const executionContexts = getShellCommandExecutionContexts(trimmedCommand, webcontainer.workdir);
+
+      for (const context of executionContexts) {
+        if (!commandRequiresNodePackageManifest(context.command)) {
+          continue;
+        }
+
+        const manifestPath = nodePath.join(context.cwd, 'package.json');
+        const relativeManifestPath = nodePath.relative(webcontainer.workdir, manifestPath);
+
+        try {
+          await webcontainer.fs.readFile(relativeManifestPath);
+        } catch {
+          return {
+            shouldModify: false,
+            fatalError: {
+              title: 'Missing package.json',
+              details: `Command '${context.command}' requires a package.json in '${context.cwd}', but none exists there. Write package.json first, then run the package-manager command.`,
+            },
+          };
+        }
+      }
+    } catch (error) {
+      logger.debug('Could not validate package manifest requirements for shell command:', error);
+    }
 
     // Handle rm commands that might fail due to missing files
     if (trimmedCommand.startsWith('rm ') && !trimmedCommand.includes(' -f')) {
@@ -781,8 +857,8 @@ export class ActionRunner {
     // Generic error with suggestions based on command type
     let suggestion = '';
 
-    if (trimmedCommand.startsWith('npm ')) {
-      suggestion = '\n\nSuggestion: Try running "npm install" first or check package.json.';
+    if (trimmedCommand.startsWith('npm ') || trimmedCommand.startsWith('pnpm ') || trimmedCommand.startsWith('yarn ')) {
+      suggestion = '\n\nSuggestion: Check that package.json exists in the command working directory, then run the package-manager command again.';
     } else if (trimmedCommand.startsWith('git ')) {
       suggestion = "\n\nSuggestion: Check if you're in a git repository or if remote is configured.";
     } else if (trimmedCommand.match(/^(ls|cat|rm|cp|mv)/)) {

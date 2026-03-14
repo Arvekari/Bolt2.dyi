@@ -1,10 +1,10 @@
-# ebolt2 Docker package
+# Opurion Docker package
 
-This directory contains a self-contained Docker packaging setup for `bolt2.dyi`.
+This directory contains a self-contained Docker packaging setup for `Opurion`.
 
 ## Files
 
-- `Dockerfile` - multi-stage build with `bolt2-dyi-production` and `development` targets
+- `Dockerfile` - multi-stage build with `opurion-production` and `development` targets
 - `docker-compose.yaml` - production service (`ebolt2`) and optional dev service (`ebolt2-dev`)
 
 ## Build image (from repository root)
@@ -30,8 +30,8 @@ docker compose -f docs/docker/composed/docker-compose.yaml --profile development
 Replace values as needed:
 
 ```bash
-docker tag bolt2-dyi:latest ghcr.io/arvekari/ebolt2:latest
-docker push ghcr.io/arvekari/ebolt2:latest
+docker tag opurion:latest ghcr.io/arvekari/opurion:latest
+docker push ghcr.io/arvekari/opurion:latest
 ```
 
 ## Deploy using prebuilt image
@@ -39,7 +39,7 @@ docker push ghcr.io/arvekari/ebolt2:latest
 Set runtime image values and start:
 
 ```bash
-IMAGE_NAME=ghcr.io/arvekari/ebolt2 IMAGE_TAG=latest docker compose -f docs/docker/composed/docker-compose.yaml up -d --no-build ebolt2
+IMAGE_NAME=ghcr.io/arvekari/opurion IMAGE_TAG=latest docker compose -f docs/docker/composed/docker-compose.yaml up -d --no-build ebolt2
 ```
 
 ## Portainer stack example (deploy from GitHub image)
@@ -49,13 +49,13 @@ Use [portainer-stack.example.yml](portainer-stack.example.yml) as your stack tem
 1. Push your image to GitHub Container Registry:
 
 ```bash
-docker tag bolt2-dyi:latest ghcr.io/<your-org>/ebolt2:latest
-docker push ghcr.io/<your-org>/ebolt2:latest
+docker tag opurion:latest ghcr.io/<your-org>/opurion:latest
+docker push ghcr.io/<your-org>/opurion:latest
 ```
 
 2. In Portainer, go to **Stacks** -> **Add stack**.
 3. Paste the contents of `portainer-stack.example.yml`.
-4. Use `ghcr.io/arvekari/ebolt2:latest` (or your custom tag).
+4. Use `ghcr.io/arvekari/opurion:latest` (or your custom tag).
 5. Fill API key environment values before deploy.
 6. Deploy the stack.
 

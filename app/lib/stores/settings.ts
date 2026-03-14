@@ -5,6 +5,13 @@ import type { TabVisibilityConfig, TabWindowConfig, UserTabConfig } from '~/comp
 import { DEFAULT_TAB_CONFIG } from '~/components/@settings/core/constants';
 import { toggleTheme } from './theme';
 import { create } from 'zustand';
+import {
+  createPromptProfiles,
+  sanitizePromptProfiles,
+  type ModelSizeProfileKey,
+  type PromptMode,
+  type SystemPromptProfiles,
+} from '~/lib/common/system-prompt-profiles';
 
 export interface Shortcut {
   key: string;
@@ -251,6 +258,7 @@ const updateAutoEnabledTracking = (providerName: string, isEnabled: boolean) => 
 // Define keys for localStorage
 const SETTINGS_KEYS = {
   DEBUG_MODE: 'isDebugEnabled',
+  OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT: 'ollamaBridgedSystemPromptSplit',
   LATEST_BRANCH: 'isLatestBranch',
   AUTO_SELECT_TEMPLATE: 'autoSelectTemplate',
   CONTEXT_OPTIMIZATION: 'contextOptimizationEnabled',
@@ -259,6 +267,10 @@ const SETTINGS_KEYS = {
   CUSTOM_PROMPT_ENABLED: 'customPromptEnabled',
   CUSTOM_PROMPT_TEXT: 'customPromptText',
   CUSTOM_PROMPT_MODE: 'customPromptMode',
+  CUSTOM_PROMPT_PROFILES: 'customPromptProfiles',
+  CUSTOM_PROMPT_PROFILE_KEY: 'customPromptProfileKey',
+  CUSTOM_PROMPT_AUTO_PROFILE: 'customPromptAutoProfile',
+  PROMPT_LIBRARY_OVERRIDES: 'promptLibraryOverrides',
   DEVELOPER_MODE: 'isDeveloperMode',
 } as const;
 
@@ -284,6 +296,7 @@ const getInitialSettings = () => {
 
   return {
     debugMode: getStoredBoolean(SETTINGS_KEYS.DEBUG_MODE, false),
+    ollamaBridgedSystemPromptSplit: getStoredBoolean(SETTINGS_KEYS.OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT, false),
     latestBranch: getStoredBoolean(SETTINGS_KEYS.LATEST_BRANCH, false),
     autoSelectTemplate: getStoredBoolean(SETTINGS_KEYS.AUTO_SELECT_TEMPLATE, true),
     contextOptimization: getStoredBoolean(SETTINGS_KEYS.CONTEXT_OPTIMIZATION, true),
@@ -292,6 +305,10 @@ const getInitialSettings = () => {
     customPromptEnabled: getStoredBoolean(SETTINGS_KEYS.CUSTOM_PROMPT_ENABLED, false),
     customPromptText: isBrowser ? localStorage.getItem(SETTINGS_KEYS.CUSTOM_PROMPT_TEXT) || '' : '',
     customPromptMode: isBrowser ? localStorage.getItem(SETTINGS_KEYS.CUSTOM_PROMPT_MODE) || 'append' : 'append',
+    customPromptProfiles: isBrowser ? localStorage.getItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILES) || '' : '',
+    customPromptProfileKey: isBrowser ? localStorage.getItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILE_KEY) || '16B' : '16B',
+    customPromptAutoProfile: getStoredBoolean(SETTINGS_KEYS.CUSTOM_PROMPT_AUTO_PROFILE, true),
+    promptLibraryOverrides: isBrowser ? localStorage.getItem(SETTINGS_KEYS.PROMPT_LIBRARY_OVERRIDES) || '' : '',
     developerMode: getStoredBoolean(SETTINGS_KEYS.DEVELOPER_MODE, false),
   };
 };
@@ -300,6 +317,7 @@ const getInitialSettings = () => {
 const initialSettings = getInitialSettings();
 
 export const isDebugMode = atom<boolean>(initialSettings.debugMode);
+export const ollamaBridgedSystemPromptSplitStore = atom<boolean>(initialSettings.ollamaBridgedSystemPromptSplit);
 export const latestBranchStore = atom<boolean>(initialSettings.latestBranch);
 export const autoSelectStarterTemplate = atom<boolean>(initialSettings.autoSelectTemplate);
 export const enableContextOptimizationStore = atom<boolean>(initialSettings.contextOptimization);
@@ -310,6 +328,46 @@ export const customPromptTextStore = atom<string>(initialSettings.customPromptTe
 export const customPromptModeStore = atom<'append' | 'replace'>(
   initialSettings.customPromptMode === 'replace' ? 'replace' : 'append',
 );
+const parseStoredPromptProfiles = (raw: string): unknown => {
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+};
+
+const initialPromptProfiles = sanitizePromptProfiles(
+  parseStoredPromptProfiles(initialSettings.customPromptProfiles),
+  initialSettings.customPromptText,
+);
+const parseStoredPromptLibraryOverrides = (raw: string): Record<string, string> => {
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+    );
+  } catch {
+    return {};
+  }
+};
+
+export const customPromptProfilesStore = atom<SystemPromptProfiles>(initialPromptProfiles);
+export const customPromptProfileKeyStore = atom<ModelSizeProfileKey>(
+  (initialSettings.customPromptProfileKey as ModelSizeProfileKey) || '16B',
+);
+export const customPromptAutoProfileStore = atom<boolean>(initialSettings.customPromptAutoProfile);
+export const promptLibraryOverridesStore = atom<Record<string, string>>(
+  parseStoredPromptLibraryOverrides(initialSettings.promptLibraryOverrides),
+);
 export const dbProviderStore = atom<'sqlite' | 'postgres'>(
   isBrowser && localStorage.getItem('dbProvider') === 'postgres' ? 'postgres' : 'sqlite',
 );
@@ -319,6 +377,11 @@ export const dbPostgresUrlStore = atom<string>(isBrowser ? localStorage.getItem(
 export const updateDebugMode = (enabled: boolean) => {
   isDebugMode.set(enabled);
   localStorage.setItem(SETTINGS_KEYS.DEBUG_MODE, JSON.stringify(enabled));
+};
+
+export const updateOllamaBridgedSystemPromptSplit = (enabled: boolean) => {
+  ollamaBridgedSystemPromptSplitStore.set(enabled);
+  localStorage.setItem(SETTINGS_KEYS.OLLAMA_BRIDGED_SYSTEM_PROMPT_SPLIT, JSON.stringify(enabled));
 };
 
 export const updateLatestBranch = (enabled: boolean) => {
@@ -361,6 +424,69 @@ export const updateCustomPromptMode = (mode: 'append' | 'replace') => {
   localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_MODE, mode);
 };
 
+export const updateCustomPromptProfiles = (profiles: SystemPromptProfiles) => {
+  customPromptProfilesStore.set(profiles);
+  localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILES, JSON.stringify(profiles));
+};
+
+export const updateCustomPromptProfile = (key: ModelSizeProfileKey, profile: { instructions: string; mode: PromptMode }) => {
+  const current = customPromptProfilesStore.get();
+  const updated = {
+    ...current,
+    [key]: {
+      instructions: profile.instructions,
+      mode: profile.mode,
+    },
+  };
+  customPromptProfilesStore.set(updated);
+  localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILES, JSON.stringify(updated));
+};
+
+export const updateCustomPromptProfileKey = (key: ModelSizeProfileKey) => {
+  customPromptProfileKeyStore.set(key);
+  localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILE_KEY, key);
+};
+
+export const updateCustomPromptAutoProfile = (enabled: boolean) => {
+  customPromptAutoProfileStore.set(enabled);
+  localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_AUTO_PROFILE, JSON.stringify(enabled));
+};
+
+export const resetCustomPromptProfiles = (sourceText: string) => {
+  const mode = customPromptModeStore.get();
+  const resetProfiles = createPromptProfiles(sourceText, mode);
+  customPromptProfilesStore.set(resetProfiles);
+  localStorage.setItem(SETTINGS_KEYS.CUSTOM_PROMPT_PROFILES, JSON.stringify(resetProfiles));
+};
+
+export const updatePromptLibraryOverride = (promptId: string, text: string) => {
+  const current = promptLibraryOverridesStore.get();
+  const updated = {
+    ...current,
+    [promptId]: text,
+  };
+  promptLibraryOverridesStore.set(updated);
+  localStorage.setItem(SETTINGS_KEYS.PROMPT_LIBRARY_OVERRIDES, JSON.stringify(updated));
+};
+
+export const removePromptLibraryOverride = (promptId: string) => {
+  const current = promptLibraryOverridesStore.get();
+
+  if (!(promptId in current)) {
+    return;
+  }
+
+  const updated = { ...current };
+  delete updated[promptId];
+  promptLibraryOverridesStore.set(updated);
+  localStorage.setItem(SETTINGS_KEYS.PROMPT_LIBRARY_OVERRIDES, JSON.stringify(updated));
+};
+
+export const resetPromptLibraryOverrides = () => {
+  promptLibraryOverridesStore.set({});
+  localStorage.setItem(SETTINGS_KEYS.PROMPT_LIBRARY_OVERRIDES, JSON.stringify({}));
+};
+
 export const updateDbProvider = (provider: 'sqlite' | 'postgres') => {
   dbProviderStore.set(provider);
   localStorage.setItem('dbProvider', provider);
@@ -394,9 +520,13 @@ const getInitialTabConfiguration = (): TabWindowConfig => {
       return defaultConfig;
     }
 
+    const parsedUserTabs = parsed.userTabs.filter((tab: TabVisibilityConfig): tab is UserTabConfig => tab.window === 'user');
+    const existingTabIds = new Set(parsedUserTabs.map((tab: UserTabConfig) => tab.id));
+    const missingDefaultTabs = defaultConfig.userTabs.filter((tab) => !existingTabIds.has(tab.id));
+
     // Ensure proper typing of loaded configuration
     return {
-      userTabs: parsed.userTabs.filter((tab: TabVisibilityConfig): tab is UserTabConfig => tab.window === 'user'),
+      userTabs: [...parsedUserTabs, ...missingDefaultTabs].sort((a, b) => a.order - b.order),
     };
   } catch (error) {
     console.warn('Failed to parse tab configuration:', error);

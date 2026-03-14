@@ -1,6 +1,6 @@
 # Docker Install Guide
 
-This guide covers Docker installation prerequisites for running `Bolt2.dyi` with the Docker stack.
+This guide covers Docker installation prerequisites for running `Opurion` with the Docker stack.
 
 ## Windows (Docker Desktop)
 

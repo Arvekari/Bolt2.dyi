@@ -5,6 +5,7 @@ import type { LanguageModelV1 } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { logger } from '~/utils/logger';
 import { createStreamCompatibleFetch } from '~/lib/modules/llm/stream-fetch-compat';
+import { isModelBelowMinimumSize, MIN_LOCAL_MODEL_SIZE_B } from '~/lib/common/system-prompt-profiles';
 
 interface OllamaModelDetails {
   parent_model: string;
@@ -85,13 +86,28 @@ export default class OllamaProvider extends BaseProvider {
       }
 
       const data = (await response.json()) as OllamaApiResponse;
+      const filteredModels = data.models.filter((model) => {
+        const sizeSource = model.details?.parameter_size || model.name;
+        return !isModelBelowMinimumSize(sizeSource, MIN_LOCAL_MODEL_SIZE_B);
+      });
 
-      return data.models.map((model: OllamaModel) => ({
-        name: model.name,
-        label: `${model.name} (${model.details.parameter_size})`,
-        provider: this.name,
-        maxTokenAllowed: 8000,
-      }));
+      const modelsToExpose =
+        filteredModels.length === 0 && data.models.length > 0
+          ? (() => {
+              logger.warn(
+                `Ollama size filter removed all ${data.models.length} models; returning unfiltered list as fallback`,
+              );
+              return data.models;
+            })()
+          : filteredModels;
+
+      return modelsToExpose
+        .map((model: OllamaModel) => ({
+          name: model.name,
+          label: `${model.name} (${model.details?.parameter_size || 'size-unknown'})`,
+          provider: this.name,
+          maxTokenAllowed: 8000,
+        }));
     } catch (error) {
       if (error instanceof DOMException && error.name === 'TimeoutError') {
         logger.warn('Ollama model fetch timed out — is Ollama running?');

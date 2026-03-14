@@ -1,5 +1,5 @@
 {
-  "at": "2026-03-10T07:45:54.892Z",
+  "at": "2026-03-10T12:14:17.806Z",
   "reason": "open_tasks_row_write_failed",
   "details": {
     "tableId": "WwKV0LTmzJj87mm0",
@@ -34,7 +34,7 @@
       {
         "route": "/api/v1/data-tables/WwKV0LTmzJj87mm0/rows",
         "payloadShape": "data",
-        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows failed (400): SQLITE_FULL: database or disk is full"
+        "error": "n8n API POST /api/v1/data-tables/WwKV0LTmzJj87mm0/rows failed (400): request/body/data must NOT have fewer than 1 items"
       }
     ]
   },

@@ -118,7 +118,7 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
               'group',
             )}
             onClick={() =>
-              window.open('https://github.com/stackblitz-labs/bolt.diy/issues/new?template=bug_report.yml', '_blank')
+              window.open('https://github.com/stackblitz-labs/Opurion/issues/new?template=bug_report.yml', '_blank')
             }
           >
             <div className="i-ph:bug w-4 h-4 text-bolt-elements-textTertiary group-hover:text-bolt-elements-textPrimary transition-colors" />
@@ -158,7 +158,7 @@ export const AvatarDropdown = ({ onSelectTab }: AvatarDropdownProps) => {
               'outline-none',
               'group',
             )}
-            onClick={() => window.open('https://stackblitz-labs.github.io/bolt.diy/', '_blank')}
+            onClick={() => window.open('https://stackblitz-labs.github.io/Opurion/', '_blank')}
           >
             <div className="i-ph:question w-4 h-4 text-bolt-elements-textTertiary group-hover:text-bolt-elements-textPrimary transition-colors" />
             Help & Documentation
