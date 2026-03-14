@@ -10,6 +10,22 @@ The format is inspired by Keep a Changelog and follows semantic versioning where
 
 ### Added
 
+- None.
+
+### Changed
+
+- None.
+
+### Fixed
+
+- None.
+
+---
+
+## [1.0.2] - 2026-03-14
+
+### Added
+
 - Sidebar `Projects` workspace is now a functional collaboration folder system with project creation/selection, discussion creation/selection, persistent shared narratives/materials, and explicit discussion index controls for cross-discussion workflows.
 - Sidebar `Artifacts` workspace now includes a reusable marketplace-style library UI with create form, type/visibility metadata, search/filtering, visual cards (with optional preview image URL), and one-click content copy for reuse.
 - Project creation now supports guide text plus shared attached reference files (text/code/spec assets), stored as project-scoped database records so collaborators in the same shared project see the same resources.
