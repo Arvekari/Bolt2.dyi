@@ -55,9 +55,9 @@ npmRebuild: false
 
 publish:
   provider: github
-  owner: Derek-X-Wang
-  repo: Bolt2.dyi
-  private: true
+  owner: Arvekari
+  repo: Opurion
+  private: false
   releaseType: release
 
 electronDownload:
