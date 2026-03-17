@@ -106,8 +106,17 @@ export function getShellCommandExecutionContexts(command: string, baseDir: strin
   return contexts;
 }
 
-function rewriteLegacyWorkspaceCd(command: string): string {
-  return command.replace(/(^|[\n;&]\s*)cd\s+(["']?)\/workspace(?:\2|(?=[\s;&\n]|$))/gi, '$1cd $2/home/project$2');
+function rewriteLegacyWorkspaceCd(command: string, workdir: string): string {
+  const normalizedWorkdir = nodePath.normalize(workdir || '/workspace');
+
+  if (normalizedWorkdir === '/workspace') {
+    return command;
+  }
+
+  return command.replace(
+    /(^|[\n;&]\s*)cd\s+(["']?)\/workspace(?:\2|(?=[\s;&\n]|$))/gi,
+    `$1cd $2${normalizedWorkdir}$2`,
+  );
 }
 
 function ensureNpxNonInteractive(command: string): string {
@@ -784,19 +793,32 @@ export class ActionRunner {
       details: string;
     };
   }> {
-    const workspaceNormalizedCommand = rewriteLegacyWorkspaceCd(command);
+    let resolvedWebcontainer: WebContainer | undefined;
+
+    try {
+      resolvedWebcontainer = await this.#webcontainer;
+    } catch (error) {
+      logger.debug('Could not resolve webcontainer for shell command validation:', error);
+    }
+
+    const workspaceNormalizedCommand = rewriteLegacyWorkspaceCd(command, resolvedWebcontainer?.workdir || '/workspace');
     const npxNormalizedCommand = ensureNpxNonInteractive(workspaceNormalizedCommand);
     let normalizedCommand = npxNormalizedCommand;
 
-    try {
-      const webcontainer = await this.#webcontainer;
-      const preferPnpm = await shouldPreferPnpmForCommandContexts(npxNormalizedCommand, webcontainer, webcontainer.workdir);
+    if (resolvedWebcontainer) {
+      try {
+        const preferPnpm = await shouldPreferPnpmForCommandContexts(
+          npxNormalizedCommand,
+          resolvedWebcontainer,
+          resolvedWebcontainer.workdir,
+        );
 
-      if (preferPnpm) {
-        normalizedCommand = rewriteNpmToPnpmForWebContainer(npxNormalizedCommand);
+        if (preferPnpm) {
+          normalizedCommand = rewriteNpmToPnpmForWebContainer(npxNormalizedCommand);
+        }
+      } catch (error) {
+        logger.debug('Could not resolve package-manager preference for shell command:', error);
       }
-    } catch (error) {
-      logger.debug('Could not resolve package-manager preference for shell command:', error);
     }
 
     const trimmedCommand = normalizedCommand.trim();
@@ -817,7 +839,7 @@ export class ActionRunner {
     }
 
     try {
-      const webcontainer = await this.#webcontainer;
+      const webcontainer = resolvedWebcontainer || (await this.#webcontainer);
       const executionContexts = getShellCommandExecutionContexts(trimmedCommand, webcontainer.workdir);
 
       for (const context of executionContexts) {

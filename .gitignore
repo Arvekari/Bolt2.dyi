@@ -58,3 +58,4 @@ bolt.work/n8n/copilot-inbox/
 .n8n-ongoing-cycle.json
 
 .bolt-memory.sqlite
+.bolt-memory-*.sqlite
