@@ -3,6 +3,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { act } from 'react';
 import { Messages } from '../../../app/components/chat/Messages.client';
 
 vi.mock('@remix-run/react', () => ({
@@ -38,7 +39,7 @@ describe('app/components/chat/Messages.client.tsx', () => {
       }),
     );
 
-    expect(screen.getByText('Request sent. Waiting for the first model response.')).toBeTruthy();
+    expect(screen.getByText('Request sent. Gathering information (round 1).')).toBeTruthy();
   });
 
   it('shows working copy while a response is actively streaming', () => {
@@ -51,6 +52,29 @@ describe('app/components/chat/Messages.client.tsx', () => {
       }),
     );
 
-    expect(screen.getByText('Model is working on the request')).toBeTruthy();
+    expect(screen.getByText('Gathering information (round 1).')).toBeTruthy();
+  });
+
+  it('rotates streaming stage after every three rounds', async () => {
+    vi.useFakeTimers();
+
+    render(
+      React.createElement(Messages, {
+        isStreaming: true,
+        streamingState: 'streaming',
+        messages: [],
+        addToolResult: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByText('Gathering information (round 1).')).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9000);
+    });
+
+    expect(screen.getByText('Working on the request (round 4).')).toBeTruthy();
+
+    vi.useRealTimers();
   });
 });

@@ -177,7 +177,7 @@ describe('ActionRunner start command validation', () => {
     vi.useRealTimers();
   });
 
-  it('rewrites npm start commands to pnpm for WebContainer compatibility', async () => {
+  it('keeps npm start commands when no pnpm lockfile exists', async () => {
     vi.useFakeTimers();
 
     const sharedShell = {
@@ -210,6 +210,75 @@ describe('ActionRunner start command validation', () => {
         readFile: vi.fn(async (path: string) => {
           if (path === 'package.json') {
             return '{"name":"demo"}';
+          }
+
+          throw new Error(`missing ${path}`);
+        }),
+      },
+    } as any;
+
+    const runner = new ActionRunner(Promise.resolve(webcontainer), () => sharedShell);
+    const actionData: ActionCallbackData = {
+      artifactId: 'artifact-1',
+      messageId: 'message-1',
+      actionId: 'action-1',
+      action: {
+        type: 'start',
+        content: 'npm run dev',
+      },
+    };
+
+    runner.addAction(actionData);
+    const runPromise = runner.runAction(actionData);
+    await vi.advanceTimersByTimeAsync(2000);
+    await runPromise;
+
+    expect(detachedShellExecute).toHaveBeenCalledWith(
+      expect.stringContaining('start'),
+      'npm run dev',
+      expect.any(Function),
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('rewrites npm start commands to pnpm when pnpm lockfile exists', async () => {
+    vi.useFakeTimers();
+
+    const sharedShell = {
+      ready: vi.fn(async () => undefined),
+      terminal: {
+        cols: 80,
+        rows: 24,
+        write: vi.fn(),
+        reset: vi.fn(),
+        onData: vi.fn(),
+        input: vi.fn(),
+      },
+      process: {},
+      executeCommand: vi.fn(),
+    } as any;
+
+    const detachedShellExecute = vi.fn(async () => ({ exitCode: 0, output: 'ready' }));
+
+    vi.spyOn(shellModule, 'newBoltShellProcess').mockReturnValue({
+      ready: vi.fn(async () => undefined),
+      init: vi.fn(async () => undefined),
+      terminal: { input: vi.fn() },
+      process: { kill: vi.fn() },
+      executeCommand: detachedShellExecute,
+    } as any);
+
+    const webcontainer = {
+      workdir: '/workspace',
+      fs: {
+        readFile: vi.fn(async (path: string) => {
+          if (path === 'package.json') {
+            return '{"name":"demo"}';
+          }
+
+          if (path === 'pnpm-lock.yaml') {
+            return 'lockfileVersion: 9.0';
           }
 
           throw new Error(`missing ${path}`);

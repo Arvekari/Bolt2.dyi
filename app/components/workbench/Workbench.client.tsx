@@ -793,7 +793,7 @@ export const Workbench = memo(
             }
 
             if (attempt < COMMAND_RETRY_ATTEMPTS) {
-              toast.warn(`Start command failed (attempt ${attempt}/${COMMAND_RETRY_ATTEMPTS}); retrying...`);
+              toast.info(`Retrying start command (attempt ${attempt + 1}/${COMMAND_RETRY_ATTEMPTS})...`);
               await delay(COMMAND_RETRY_DELAY_MS);
             }
           }

@@ -1,5 +1,6 @@
 import type { Message } from 'ai';
 import { Fragment } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { classNames } from '~/utils/classNames';
 import { AssistantMessage } from './AssistantMessage';
 import { UserMessage } from './UserMessage';
@@ -31,12 +32,35 @@ export const Messages = forwardRef<HTMLDivElement, MessagesProps>(
   (props: MessagesProps, ref: ForwardedRef<HTMLDivElement> | undefined) => {
     const { id, isStreaming = false, messages = [], streamingState = 'streaming' } = props;
     const location = useLocation();
+
+    const [progressRound, setProgressRound] = useState(1);
+
+    useEffect(() => {
+      if (!isStreaming || streamingState === 'stalled') {
+        setProgressRound(1);
+        return;
+      }
+
+      const intervalId = window.setInterval(() => {
+        setProgressRound((currentRound) => currentRound + 1);
+      }, 3000);
+
+      return () => {
+        window.clearInterval(intervalId);
+      };
+    }, [isStreaming, streamingState]);
+
+    const rotatingStageLabel = useMemo(() => {
+      const stageIndex = Math.floor((progressRound - 1) / 3) % 2;
+      return stageIndex === 0 ? 'Gathering information' : 'Working on the request';
+    }, [progressRound]);
+
     const loadingLabel =
       streamingState === 'submitted'
-        ? 'Request sent. Waiting for the first model response.'
+        ? `Request sent. ${rotatingStageLabel} (round ${progressRound}).`
         : streamingState === 'stalled'
           ? 'The response looks stalled.'
-          : 'Model is working on the request';
+          : `${rotatingStageLabel} (round ${progressRound}).`;
 
     const handleRewind = (messageId: string) => {
       const searchParams = new URLSearchParams(location.search);

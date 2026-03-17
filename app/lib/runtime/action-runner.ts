@@ -122,6 +122,28 @@ function rewriteNpmToPnpmForWebContainer(command: string): string {
     .replace(/(^|[\n;&]\s*)npm\s+(start|dev|build|test|preview)\b/gi, '$1pnpm $2');
 }
 
+async function shouldPreferPnpmForCommandContexts(
+  command: string,
+  webcontainer: WebContainer,
+  baseDir: string,
+): Promise<boolean> {
+  const contexts = getShellCommandExecutionContexts(command, baseDir);
+
+  for (const context of contexts) {
+    const lockPath = nodePath.join(context.cwd, 'pnpm-lock.yaml');
+    const relativeLockPath = nodePath.relative(webcontainer.workdir, lockPath);
+
+    try {
+      await webcontainer.fs.readFile(relativeLockPath, 'utf-8');
+      return true;
+    } catch {
+      // Continue checking other command contexts.
+    }
+  }
+
+  return false;
+}
+
 export class ActionRunner {
   #webcontainer: Promise<WebContainer>;
   #currentExecutionPromise: Promise<void> = Promise.resolve();
@@ -762,15 +784,28 @@ export class ActionRunner {
       details: string;
     };
   }> {
-    const normalizedCommand = rewriteNpmToPnpmForWebContainer(ensureNpxNonInteractive(rewriteLegacyWorkspaceCd(command)));
+    const workspaceNormalizedCommand = rewriteLegacyWorkspaceCd(command);
+    const npxNormalizedCommand = ensureNpxNonInteractive(workspaceNormalizedCommand);
+    let normalizedCommand = npxNormalizedCommand;
+
+    try {
+      const webcontainer = await this.#webcontainer;
+      const preferPnpm = await shouldPreferPnpmForCommandContexts(npxNormalizedCommand, webcontainer, webcontainer.workdir);
+
+      if (preferPnpm) {
+        normalizedCommand = rewriteNpmToPnpmForWebContainer(npxNormalizedCommand);
+      }
+    } catch (error) {
+      logger.debug('Could not resolve package-manager preference for shell command:', error);
+    }
+
     const trimmedCommand = normalizedCommand.trim();
 
     if (normalizedCommand !== command) {
-      const rewrittenWorkspace = rewriteLegacyWorkspaceCd(command);
       const rewriteReason =
-        rewrittenWorkspace !== command
+        workspaceNormalizedCommand !== command
           ? 'Replaced legacy /workspace path with /home/project'
-          : normalizedCommand !== ensureNpxNonInteractive(rewriteLegacyWorkspaceCd(command))
+          : normalizedCommand !== npxNormalizedCommand
             ? 'Rewrote npm command to pnpm for WebContainer compatibility'
             : 'Added --yes to npx command to avoid interactive prompts';
 
